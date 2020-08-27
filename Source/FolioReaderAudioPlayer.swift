@@ -141,7 +141,7 @@ open class FolioReaderAudioPlayer: NSObject {
         completion?()
     }
 
-    @objc func pause() {
+    @objc func pause() -> MPRemoteCommandHandlerStatus {
         playing = false
 
         if !isTextToSpeech {
@@ -153,19 +153,23 @@ open class FolioReaderAudioPlayer: NSObject {
                 synthesizer.pauseSpeaking(at: .word)
             }
         }
+        return .success
     }
 
-    @objc func togglePlay() {
+    @objc func togglePlay() -> MPRemoteCommandHandlerStatus {
         isPlaying() ? pause() : play()
+        return .success
+
     }
 
-    @objc func play() {
+    @objc func play() -> MPRemoteCommandHandlerStatus  {
         if book.hasAudio {
-            guard let currentPage = self.folioReader.readerCenter?.currentPage else { return }
+            guard let currentPage = self.folioReader.readerCenter?.currentPage else { return .commandFailed}
             currentPage.webView?.js("playAudio()")
         } else {
             self.readCurrentSentence()
         }
+        return .success
     }
 
     func isPlaying() -> Bool {
@@ -216,7 +220,7 @@ open class FolioReaderAudioPlayer: NSObject {
         playNextChapter()
     }
 
-    @objc func playPrevChapter() {
+    @objc func playPrevChapter() -> MPRemoteCommandHandlerStatus {
         stopPlayerTimer()
         // Wait for "currentPage" to update, then request to play audio
         self.folioReader.readerCenter?.changePageToPrevious {
@@ -226,9 +230,10 @@ open class FolioReaderAudioPlayer: NSObject {
                 self.pause()
             }
         }
+        return .success
     }
 
-    @objc func playNextChapter() {
+    @objc func playNextChapter() -> MPRemoteCommandHandlerStatus {
         stopPlayerTimer()
         // Wait for "currentPage" to update, then request to play audio
         self.folioReader.readerCenter?.changePageToNext {
@@ -236,6 +241,7 @@ open class FolioReaderAudioPlayer: NSObject {
                 self.play()
             }
         }
+        return .success
     }
 
 

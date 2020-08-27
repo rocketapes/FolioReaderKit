@@ -6,13 +6,21 @@
 //  Copyright (c) 2016 Folio Reader. All rights reserved.
 //
 
-import UIKit
+import WebKit
+
+public typealias JSCallback = ((String?) ->())
 
 /// The custom WebView used in each page
-open class FolioReaderWebView: UIWebView {
+open class FolioReaderWebView: WKWebView {
     var isColors = false
     var isShare = false
     var isOneWord = false
+    
+    fileprivate(set) var cssOverflowProperty = "scroll" {
+        didSet {
+            FolioReaderScript.cssInjection(overflow: cssOverflowProperty).addIfNeeded(to: self)
+        }
+    }
 
     fileprivate weak var readerContainer: FolioReaderContainer?
 
@@ -31,14 +39,18 @@ open class FolioReaderWebView: UIWebView {
         return readerContainer.folioReader
     }
 
-    override init(frame: CGRect) {
-        fatalError("use init(frame:readerConfig:book:) instead.")
-    }
-
     init(frame: CGRect, readerContainer: FolioReaderContainer) {
         self.readerContainer = readerContainer
+        
+        let configuration = WKWebViewConfiguration()
+        if #available(iOS 10.0, *) {
+            configuration.dataDetectorTypes = .link
+        } else {
+            // Fallback on earlier versions
+            assertionFailure("unsupported iOS version")
+        }
+        super.init(frame: frame, configuration: configuration)
 
-        super.init(frame: frame)
     }
 
     required public init?(coder aDecoder: NSCoder) {
@@ -361,13 +373,6 @@ open class FolioReaderWebView: UIWebView {
         UIMenuController.shared.setMenuVisible(menuVisible, animated: animated)
     }
     
-    // MARK: - Java Script Bridge
-    
-    @discardableResult open func js(_ script: String) -> String? {
-        let callback = self.stringByEvaluatingJavaScript(from: script)
-        if callback!.isEmpty { return nil }
-        return callback
-    }
     
     // MARK: WebView
     
@@ -383,13 +388,12 @@ open class FolioReaderWebView: UIWebView {
         switch self.readerConfig.scrollDirection {
         case .vertical, .defaultVertical, .horizontalWithVerticalContent:
             scrollView.isPagingEnabled = false
-            paginationMode = .unpaginated
+            cssOverflowProperty = "scroll"
             scrollView.bounces = true
             break
         case .horizontal:
             scrollView.isPagingEnabled = true
-            paginationMode = .leftToRight
-            paginationBreakingMode = .page
+            cssOverflowProperty = "-webkit-paged-x"
             scrollView.bounces = false
             break
         }

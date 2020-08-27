@@ -6,8 +6,9 @@
 //
 
 import Foundation
+import WebKit
 
-extension UIWebView {
+extension WKWebView {
     open func isFinishedLoad() -> Bool {
         let string = self.stringByEvaluatingJavaScript(from: "document.readyState") ?? ""
         return string == "complete" && !self.isLoading
@@ -44,5 +45,26 @@ extension UIWebView {
         return CGFloat((height as NSString? ?? "").doubleValue)
     }
     
+    // MARK: - Java Script Bridge
+    open func stringByEvaluatingJavaScript( from: String) -> String? {
+        var evaluationResult: String?;
+        let semaphore = DispatchSemaphore(value: 1)
+         evaluateJavaScript(from) { (result, error) in
+            evaluationResult = result as? String
+            semaphore.signal()
+        }
+        _ = semaphore.wait(wallTimeout: .distantFuture)
+        return evaluationResult
+    }
+    
+    open func js(_ script: String, completion: @escaping JSCallback) {
+        evaluateJavaScript(script) { (result, error) in
+            completion(result as? String)
+        }
+    }
+    
+    open func js(_ script: String) -> String? {
+        return stringByEvaluatingJavaScript(from: script)
+    }
     
 }
