@@ -511,6 +511,10 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
                     guard var html = content, !html.isEmpty else {
                         return
                     }
+                    
+                    // Inject viewport
+                    let viewportTag = "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, shrink-to-fit=no\">"
+                    
                     let mediaOverlayStyleColors = "\"\(self.readerConfig.mediaOverlayColor.hexString(false))\", \"\(self.readerConfig.mediaOverlayColor.highlightColor().hexString(false))\""
                     
                     // Inject CSS and js
@@ -527,7 +531,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
                     let cssFilePath = Bundle.frameworkBundle().path(forResource: "Style", ofType: "css")
                     let cssTag = "<link rel=\"stylesheet\" type=\"text/css\" href=\"\(cssFilePath!)\">"
                     
-                    let toInject = "<head>\n\(cssTag)\n\(jsFilesTags)\n"
+                    let toInject = "<head>\n\(cssTag)\n\(jsFilesTags)\n\(viewportTag)\n"
                     html = html.replacingOccurrences(of: "<head>", with: toInject)
                     
                     // Font class name
