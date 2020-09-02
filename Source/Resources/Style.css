@@ -24,6 +24,46 @@ time, mark, audio, video {
     vertical-align: baseline;
 }
 
+/* IID add font support*/
+
+@font-face
+{
+    font-family: 'Andada';
+    src: url('Andada-Bold.ttf') format('truetype');
+    src: url('Andada-BoldItalic.ttf') format('truetype');
+    src: url('Andada-Italic.ttf') format('truetype');
+    src: url('Andada-Regular.ttf') format('truetype');
+
+}
+
+@font-face
+{
+    font-family: 'Lato';
+    src: url('Lato-Regular.ttf') format('truetype');
+    src: url('Lato-BoldItalic.ttf') format('truetype');
+    src: url('Lato-Italic.ttf') format('truetype');
+    src: url('Lato-Regular.ttf') format('truetype');
+}
+
+@font-face
+{
+    font-family: 'Lora';
+    src: url('Lora-Regular.ttf') format('truetype');
+    src: url('Lora-BoldItalic.ttf') format('truetype');
+    src: url('Lora-Italic.ttf') format('truetype');
+    src: url('Lora-Regular.ttf') format('truetype');
+}
+
+@font-face
+{
+    font-family: 'Raleway';
+    src: url('Raleway-Regular.ttf') format('truetype');
+    src: url('Raleway-BoldItalic.ttf') format('truetype');
+    src: url('Raleway-Italic.ttf') format('truetype');
+    src: url('Raleway-Regular.ttf') format('truetype');
+}
+
+/* end IID */
 /* HTML5 display-role reset for older browsers */
 article, aside, details, figcaption, figure,
 footer, header, hgroup, menu, nav, section {
