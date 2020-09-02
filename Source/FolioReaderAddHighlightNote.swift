@@ -2,7 +2,7 @@
 //  FolioReaderAddHighlightNote.swift
 //  FolioReaderKit
 //
-//  Created by ShuichiNagao on 2018/05/06.
+//  Created by ShuichiNagao on 2018/05/06.[JIRA] (KVV-398) Places picker loops
 //
 
 import UIKit
@@ -69,7 +69,7 @@ class FolioReaderAddHighlightNote: UIViewController, UIScrollViewDelegate {
         
         if !highlightSaved && !isEditHighlight {
             guard let currentPage = folioReader.readerCenter?.currentPage else { return }
-            currentPage.webView?.js("removeThisHighlight()")
+            currentPage.webView?.js("removeThisHighlight()"){ _ in }
         }
     }
     

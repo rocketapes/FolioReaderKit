@@ -9,62 +9,14 @@ import Foundation
 import WebKit
 
 extension WKWebView {
-    open func isFinishedLoad() -> Bool {
-        let string = self.stringByEvaluatingJavaScript(from: "document.readyState") ?? ""
-        return string == "complete" && !self.isLoading
-    }
     
-    open var didFinishLoadEmptyString: Bool {
-        let length = self.stringByEvaluatingJavaScript(from: "document.getElementsByTagName('body')[0].innerHTML.length") ?? "0"
-        return Int(length) == 0
-    }
-    
-    open var offsetHeight: CGFloat {
-        let heightString = self.stringByEvaluatingJavaScript(from: "document.body.offsetHeight")
-        return CGFloat((heightString as NSString? ?? "").doubleValue)
-    }
-    
-    open var offsetWidth: CGFloat {
-        let widthString = self.stringByEvaluatingJavaScript(from: "document.body.offsetWidth")
-        return CGFloat((widthString as NSString? ?? "").doubleValue)
-    }
-    
-    open var scrollHeight: CGFloat {
-        let heightString = self.stringByEvaluatingJavaScript(from: "document.body.scrollHeight")
-        return CGFloat((heightString as NSString? ?? "").doubleValue)
-    }
-    
-    open var scrollWidth: CGFloat {
-        let widthString = self.stringByEvaluatingJavaScript(from: "document.body.scrollWidth")
-        return CGFloat((widthString as NSString? ?? "").doubleValue)
-    }
-    
-    open var innerHeight: CGFloat {
-        let js = "var style = window.getComputedStyle(document.body, null); style.getPropertyValue(\"height\");"
-        let height = self.stringByEvaluatingJavaScript(from: js)
-        return CGFloat((height as NSString? ?? "").doubleValue)
-    }
     
     // MARK: - Java Script Bridge
-    open func stringByEvaluatingJavaScript( from: String) -> String? {
-        var evaluationResult: String?;
-        let semaphore = DispatchSemaphore(value: 1)
-         evaluateJavaScript(from) { (result, error) in
-            evaluationResult = result as? String
-            semaphore.signal()
-        }
-        _ = semaphore.wait(wallTimeout: .distantFuture)
-        return evaluationResult
-    }
     
     open func js(_ script: String, completion: @escaping JSCallback) {
         evaluateJavaScript(script) { (result, error) in
             completion(result as? String)
         }
-    }
-    
-    open func js(_ script: String) -> String? {
-        return stringByEvaluatingJavaScript(from: script)
     }
     
 }
