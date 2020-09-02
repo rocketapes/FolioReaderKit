@@ -15,6 +15,10 @@ extension WKWebView {
     
     open func js(_ script: String, completion: @escaping JSCallback) {
         evaluateJavaScript(script) { (result, error) in
+            if let number = result as? NSNumber {
+                completion(number.stringValue)
+				return
+            }
             completion(result as? String)
         }
     }
