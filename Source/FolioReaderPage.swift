@@ -638,20 +638,24 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
             webView.createMenu(options: false)
         }
 
-    	if !webView.isShare && !webView.isColors {
-    	webView.js("getSelectedText()") { result in
-        guard let result = result else {
-			return
+        if !webView.isShare && !webView.isColors {
+           // let semaphore = DispatchSemaphore(value: 0)
+     	    webView.js("getSelectedText()") { result in
+        	guard let result = result else { return  }
+            if result.count == 0 { return }
+
+      	  	if result.components(separatedBy: " ").count == 1 {
+            	webView.isOneWord = true
+       	     	webView.createMenu(options: false)
+       		 } else {
+       	    	 webView.isOneWord = false
+       		 	}
+              //  semaphore.signal()
+            }
+            //let _ = semaphore.wait(timeout: .now() + 2)
+
         }
-		if result.components(separatedBy: " ").count == 1 {
-        	webView.isOneWord = true
-			webView.createMenu(options: false)
-		} else {
-			webView.isOneWord = false
-		}
-		}
-		}
-		return super.canPerformAction(action, withSender: sender)
+        return super.canPerformAction(action, withSender: sender)
     }
 
     // MARK: ColorView fix for horizontal layout
