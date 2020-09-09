@@ -180,10 +180,11 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     }
 
     // MARK: - WKNavigationDelegate Delegate
-    open func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+    open func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+
     }
 
-    open func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+    open func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard let webView = webView as? FolioReaderWebView else {
             return
         }
@@ -233,7 +234,6 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
             webView.isColors = false
             self.webView?.createMenu(options: false)
         })
-        delegate?.pageDidLoad?(self)
 
         // IID
         // add highlight
@@ -274,7 +274,12 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
             }
         }
         if (rangies.count > 0) {
-            self.webView?.js("setHighlight('\(rangies)')")  { _ in }
+            self.webView?.js("setHighlight('\(rangies)')")  { _ in
+                self.delegate?.pageDidLoad?(self)
+            }
+        }
+        else {
+            self.delegate?.pageDidLoad?(self)
         }
     }
 
