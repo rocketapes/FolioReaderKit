@@ -45,6 +45,8 @@ open class FolioReaderWebView: WKWebView {
         let configuration = WKWebViewConfiguration()
         if #available(iOS 10.0, *) {
             configuration.dataDetectorTypes = .link
+            // pass WKWebViewConfiguration to app to let the app set scheme handler, we use that to load css or images in streaming reading mode
+            self.readerContainer?.readerConfig.fileDelegate?.setURLSchemeHandler( config: configuration)
         } else {
             // Fallback on earlier versions
             assertionFailure("unsupported iOS version")
