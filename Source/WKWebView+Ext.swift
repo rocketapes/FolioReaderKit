@@ -1,5 +1,5 @@
 //
-//  UIWebView+Ext.swift
+//  WKWebView+Ext.swift
 //  AEXML
 //
 //  Created by Dung Le on 10/20/18.
