@@ -153,6 +153,8 @@ class FREpubParser: NSObject, SSZipArchiveDelegate {
             }
         }
 
+        let spine = xmlDoc.root["spine"]
+
         // Parse and save each "manifest item"
         xmlDoc.root["manifest"]["item"].all?.forEach {
             let resource = FRResource()
@@ -163,8 +165,9 @@ class FREpubParser: NSObject, SSZipArchiveDelegate {
             resource.mediaType = MediaType.by(name: $0.attributes["media-type"] ?? "", fileName: resource.href)
             resource.mediaOverlay = $0.attributes["media-overlay"]
 
-            guard resource.mediaType == .ncx || $0.attributes["linear"].lowercased() == "yes" else {
-                return
+            guard let tag = spine.find(where: { $0.attributes["idref"] == resource.id }),
+                  tag.attributes["linear"] == "yes" else {
+                continue
             }
 
             // if a .smil file is listed in resources, go parse that file now and save it on book model
@@ -211,7 +214,6 @@ class FREpubParser: NSObject, SSZipArchiveDelegate {
         book.flatTableOfContents = flatTOC
 
         // Read Spine
-        let spine = xmlDoc.root["spine"]
         book.spine = readSpine(spine.children)
 
         // Page progress direction `ltr` or `rtl`
@@ -464,16 +466,14 @@ class FREpubParser: NSObject, SSZipArchiveDelegate {
         let spine = FRSpine()
 
         for tag in tags {
-            guard let idref = tag.attributes["idref"] else { continue }
-            var linear = true
-
-            if tag.attributes["linear"] != nil {
-                linear = tag.attributes["linear"] == "yes" ? true : false
+            guard let idref = tag.attributes["idref"],
+                  tag.attributes["linear"] == "yes" else {
+                continue
             }
 
-            if book.resources.containsById(idref) {
-                guard let resource = book.resources.findById(idref) else { continue }
-                spine.spineReferences.append(Spine(resource: resource, linear: linear))
+            if book.resources.containsById(idref),
+               let resource = book.resources.findById(idref) {
+                spine.spineReferences.append(Spine(resource: resource))
             }
         }
         return spine
