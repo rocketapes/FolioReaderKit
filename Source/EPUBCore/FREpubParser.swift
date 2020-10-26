@@ -166,7 +166,7 @@ class FREpubParser: NSObject, SSZipArchiveDelegate {
             resource.mediaOverlay = $0.attributes["media-overlay"]
 
             let tag = spine.children.first(where: { $0.attributes["idref"] == resource.id })
-            guard tag.attributes["linear"] == "yes" else {
+            guard tag?.attributes["linear"] == "yes" else {
                 return
             }
 
