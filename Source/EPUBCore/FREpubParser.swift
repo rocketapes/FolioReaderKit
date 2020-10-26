@@ -155,10 +155,6 @@ class FREpubParser: NSObject, SSZipArchiveDelegate {
 
         // Parse and save each "manifest item"
         xmlDoc.root["manifest"]["item"].all?.forEach {
-            guard ($0.attributes["linear"] as? String)?.lowercased() == "yes" else {
-                return
-            }
-
             let resource = FRResource()
             resource.id = $0.attributes["id"]
             resource.properties = $0.attributes["properties"]
@@ -166,6 +162,10 @@ class FREpubParser: NSObject, SSZipArchiveDelegate {
             resource.fullHref = resourcesBasePath.appendingPathComponent(resource.href).removingPercentEncoding
             resource.mediaType = MediaType.by(name: $0.attributes["media-type"] ?? "", fileName: resource.href)
             resource.mediaOverlay = $0.attributes["media-overlay"]
+
+            guard resource.mediaType == .ncx || $0.attributes["linear"].lowercased() == "yes" else {
+                return
+            }
 
             // if a .smil file is listed in resources, go parse that file now and save it on book model
             if (resource.mediaType != nil && resource.mediaType == .smil) {
