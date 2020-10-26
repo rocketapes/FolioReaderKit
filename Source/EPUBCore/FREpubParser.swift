@@ -165,9 +165,9 @@ class FREpubParser: NSObject, SSZipArchiveDelegate {
             resource.mediaType = MediaType.by(name: $0.attributes["media-type"] ?? "", fileName: resource.href)
             resource.mediaOverlay = $0.attributes["media-overlay"]
 
-            guard let tag = spine.find(where: { $0.attributes["idref"] == resource.id }),
-                  tag.attributes["linear"] == "yes" else {
-                continue
+            let tag = spine.children.first(where: { $0.attributes["idref"] == resource.id })
+            guard tag.attributes["linear"] == "yes" else {
+                return
             }
 
             // if a .smil file is listed in resources, go parse that file now and save it on book model
