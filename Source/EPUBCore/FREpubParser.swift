@@ -155,6 +155,10 @@ class FREpubParser: NSObject, SSZipArchiveDelegate {
 
         // Parse and save each "manifest item"
         xmlDoc.root["manifest"]["item"].all?.forEach {
+            guard ($0.attributes["linear"] as? String)?.lowercased() == "yes" else {
+                return
+            }
+
             let resource = FRResource()
             resource.id = $0.attributes["id"]
             resource.properties = $0.attributes["properties"]
