@@ -50,7 +50,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   AEXML: 5ebafc1b75e0bcf0f1b09b8ca8fed2d5a199479b
-  FolioReaderKit: 281a53cd2b65835b6ad2e3651eb0753115fa54a1
+  FolioReaderKit: e41e4e6c08163d6f4e9f0b772534646be449cbef
   FontBlaster: 84229df8e3a7a6dacb190565bc543747a0c323f9
   JSQWebViewController: 51041569b75d19dbb6b7fe0b7ae053c32409a9be
   MenuItemKit: d9b539b28fdbbd7980d6f3668b9cd6daefeabd9b
@@ -62,6 +62,6 @@ SPEC CHECKSUMS:
   SSZipArchive: 14401ade5f8e82aba1ff03e9f88e9de60937ae60
   ZFDragableModalTransition: 0d294eaaba6edfcb9839595de765f9ca06a4b524
 
-PODFILE CHECKSUM: 0587f7d24e8b1f5b76f3c883f0acafb284952c5c
+PODFILE CHECKSUM: 9932b7ee92a9a8b8fea42a55618dbe45baad7ebf
 
 COCOAPODS: 1.10.0
