@@ -43,14 +43,8 @@ open class FolioReaderWebView: WKWebView {
         self.readerContainer = readerContainer
         
         let configuration = WKWebViewConfiguration()
-        if #available(iOS 10.0, *) {
-            configuration.dataDetectorTypes = .link
-            // pass WKWebViewConfiguration to app to let the app set scheme handler, we use that to load css or images in streaming reading mode
-            self.readerContainer?.readerConfig.fileDelegate?.setURLSchemeHandler( config: configuration)
-        } else {
-            // Fallback on earlier versions
-            assertionFailure("unsupported iOS version")
-        }
+        // pass WKWebViewConfiguration to app to let the app set scheme handler, we use that to load css or images in streaming reading mode
+        self.readerContainer?.readerConfig.fileDelegate?.setURLSchemeHandler( config: configuration)
         super.init(frame: frame, configuration: configuration)
 
     }
@@ -372,7 +366,7 @@ open class FolioReaderWebView: WKWebView {
                 menuItems.append(shareItem)
             }
         }
-        
+
         menuController.menuItems = menuItems
     }
     

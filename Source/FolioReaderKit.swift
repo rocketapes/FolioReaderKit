@@ -374,26 +374,26 @@ extension FolioReader {
           }
           let rangy = FolioUtils.makeRangyValidIfNeeded(rangy: Highlight.typeTextContentWithLine + rangyString)
           do {
-              let realm = try Realm()
-              realm.beginWrite()
-              let lastRead = FolioLastRead()
-              lastRead.bookId = self.readerCenter?.rwBook?.id ?? 0
-              lastRead.page = max( (self.readerCenter?.currentPageNumber ?? 0) - 1, 0 )
-              lastRead.position = rangy
-              lastRead.created = Date()
-              lastRead.modified = Date()
-              lastRead.filePath = currentPage.resource?.href
-              lastRead.pageOffsetX = webView.scrollView.contentOffset.x
-              lastRead.pageOffsetY = webView.scrollView.contentOffset.y
-              lastRead.fontSize = self.currentFontSize.rawValue
-              lastRead.isVertical = self.readerContainer?.readerConfig.scrollDirection.isVertical ?? false
-              lastRead.isLandscape = UIDevice.current.orientation.isLandscape
-              lastRead.subPage = (self.readerContainer?.readerConfig.scrollDirection.isVertical == true) ?
-                  Int(webView.scrollView.contentOffset.y / UIScreen.main.bounds.size.height) :
-                  Int(webView.scrollView.contentOffset.x / UIScreen.main.bounds.size.width)
-              lastRead.pageSize = "\(Int(UIScreen.main.bounds.size.width))x\(Int(UIScreen.main.bounds.size.height))"
-              realm.add(lastRead, update: true)
-              try realm.commitWrite()
+            let realm = try Realm()
+            realm.beginWrite()
+            let lastRead = FolioLastRead()
+            lastRead.bookId = self.readerCenter?.rwBook?.id ?? 0
+            lastRead.page = max( (self.readerCenter?.currentPageNumber ?? 0) - 1, 0 )
+            lastRead.position = rangy
+            lastRead.created = Date()
+            lastRead.modified = Date()
+            lastRead.filePath = currentPage.resource?.href
+            lastRead.pageOffsetX = webView.scrollView.contentOffset.x
+            lastRead.pageOffsetY = webView.scrollView.contentOffset.y
+            lastRead.fontSize = self.currentFontSize.rawValue
+            lastRead.isVertical = self.readerContainer?.readerConfig.scrollDirection.isVertical ?? false
+            lastRead.isLandscape = UIDevice.current.orientation.isLandscape
+            lastRead.subPage = (self.readerContainer?.readerConfig.scrollDirection.isVertical == true) ?
+                Int(webView.scrollView.contentOffset.y / UIScreen.main.bounds.size.height) :
+                Int(webView.scrollView.contentOffset.x / UIScreen.main.bounds.size.width)
+            lastRead.pageSize = "\(Int(UIScreen.main.bounds.size.width))x\(Int(UIScreen.main.bounds.size.height))"
+            realm.add(lastRead, update: .all)
+            try realm.commitWrite()
           } catch {
               print("Error on persist last read: \(error)")
           }

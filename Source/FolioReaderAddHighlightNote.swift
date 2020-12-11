@@ -150,7 +150,7 @@ class FolioReaderAddHighlightNote: UIViewController, UIScrollViewDelegate {
     
     @objc private func keyboardWillShow(notification: NSNotification){
         //give room at the bottom of the scroll view, so it doesn't cover up anything the user needs to tap
-        var userInfo = notification.userInfo!
+        let userInfo = notification.userInfo!
         var keyboardFrame:CGRect = (userInfo[UIKeyboardFrameBeginUserInfoKey] as! NSValue).cgRectValue
         keyboardFrame = self.view.convert(keyboardFrame, from: nil)
         

@@ -141,6 +141,7 @@ open class FolioReaderAudioPlayer: NSObject {
         completion?()
     }
 
+    @discardableResult
     @objc func pause() -> MPRemoteCommandHandlerStatus {
         playing = false
 
@@ -156,12 +157,12 @@ open class FolioReaderAudioPlayer: NSObject {
         return .success
     }
 
+    @discardableResult
     @objc func togglePlay() -> MPRemoteCommandHandlerStatus {
         isPlaying() ? pause() : play()
-        return .success
-
     }
 
+    @discardableResult
     @objc func play() -> MPRemoteCommandHandlerStatus  {
         if book.hasAudio {
             guard let currentPage = self.folioReader.readerCenter?.currentPage else { return .commandFailed}
@@ -220,6 +221,7 @@ open class FolioReaderAudioPlayer: NSObject {
         playNextChapter()
     }
 
+    @discardableResult
     @objc func playPrevChapter() -> MPRemoteCommandHandlerStatus {
         stopPlayerTimer()
         // Wait for "currentPage" to update, then request to play audio
@@ -233,6 +235,7 @@ open class FolioReaderAudioPlayer: NSObject {
         return .success
     }
 
+    @discardableResult
     @objc func playNextChapter() -> MPRemoteCommandHandlerStatus {
         stopPlayerTimer()
         // Wait for "currentPage" to update, then request to play audio
@@ -383,9 +386,6 @@ open class FolioReaderAudioPlayer: NSObject {
             }
 
             return
-         guard let href = readerCenter.getCurrentChapter()?.href else {
-                   return
-               }
             }
 
         guard let href = readerCenter.getCurrentChapter()?.href else {
@@ -452,7 +452,7 @@ open class FolioReaderAudioPlayer: NSObject {
 
         // Get book Artwork
         if let coverImage = self.book.coverImage, let artwork = UIImage(contentsOfFile: coverImage.fullHref) {
-            let albumArt = MPMediaItemArtwork(image: artwork)
+            let albumArt = MPMediaItemArtwork(boundsSize: artwork.size, requestHandler: { _ in artwork })
             songInfo[MPMediaItemPropertyArtwork] = albumArt
         }
 

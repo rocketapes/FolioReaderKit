@@ -429,7 +429,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
             if isClassBasedOnClickListenerScheme == false {
                 // Try to open the url with the system if it wasn't a custom class based click listener
                 if UIApplication.shared.canOpenURL(url) {
-                    UIApplication.shared.openURL(url)
+                    UIApplication.shared.open(url)
                     decisionHandler(WKNavigationActionPolicy.cancel)
                     return
                 }
@@ -543,7 +543,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
                     self.readerConfig.scrollDirection.collectionViewScrollDirection() == UICollectionViewScrollDirection.vertical {
                     offsetSanitised = offset - 100
                 }
-                self.scrollPageToOffset(offset, animated: animated)
+                self.scrollPageToOffset(offsetSanitised, animated: animated)
             }
             
         }
@@ -612,7 +612,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     func getAnchorOffset(_ anchor: String, completion: @escaping (CGFloat) -> Void ){
         let horizontal = self.readerConfig.scrollDirection == .horizontal
         webView?.js("getAnchorOffset('\(anchor)', \(horizontal))") { strOffset in
-            completion( CGFloat((strOffset as? NSString ?? "0").floatValue))
+            completion( CGFloat((strOffset as NSString? ?? "0").floatValue))
         }
     }
 

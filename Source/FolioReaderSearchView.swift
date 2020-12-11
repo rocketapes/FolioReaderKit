@@ -292,7 +292,7 @@ class FolioReaderSearchView: UIViewController {
                     if operation.isCancelled == true {
                         return
                     }
-                    var mMatches = regex.matches(input: html)
+                    let mMatches = regex.matches(input: html)
                     guard let matches = mMatches, matches.count > 0 else {
                         checkPauseSearchingInGlobalLoopIfNeeded()
                         if self.debugMode {
