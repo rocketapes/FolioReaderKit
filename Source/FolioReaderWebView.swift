@@ -292,53 +292,45 @@ open class FolioReaderWebView: WKWebView {
 
     // MARK: - Create and show menu
 
+    private let menuController = UIMenuController.shared
+
+    private lazy var highlightItem = UIMenuItem(title: self.readerConfig.localizedHighlightMenu, action: #selector(highlight(_:)))
+    private lazy var highlightNoteItem = UIMenuItem(title: self.readerConfig.localizedHighlightNote, action: #selector(highlightWithNote(_:)))
+    private lazy var editNoteItem = UIMenuItem(title: self.readerConfig.localizedHighlightNote, action: #selector(updateHighlightNote(_:)))
+    private lazy var playAudioItem = UIMenuItem(title: self.readerConfig.localizedPlayMenu, action: #selector(play(_:)))
+    private lazy var defineItem = UIMenuItem(title: self.readerConfig.localizedDefineMenu, action: #selector(define(_:)))
+
+    private lazy var colorsItem = UIMenuItem(title: "C", image: UIImage(readerImageNamed: "colors-marker")) { [weak self] _ in
+        self?.colors(self?.menuController)
+    }
+    private lazy var shareItem = UIMenuItem(title: "S", image: UIImage(readerImageNamed: "share-marker")) { [weak self] _ in
+        self?.share(self?.menuController)
+    }
+    private lazy var removeItem = UIMenuItem(title: "R", image: UIImage(readerImageNamed: "no-marker")) { [weak self] _ in
+        self?.remove(self?.menuController)
+    }
+    private lazy var yellowItem = UIMenuItem(title: "Y", image: UIImage(readerImageNamed: "yellow-marker")) { [weak self] _ in
+        self?.setYellow(self?.menuController)
+    }
+    private lazy var greenItem = UIMenuItem(title: "G", image: UIImage(readerImageNamed: "green-marker")) { [weak self] _ in
+        self?.setGreen(self?.menuController)
+    }
+    private lazy var blueItem = UIMenuItem(title: "B", image: UIImage(readerImageNamed: "blue-marker")) { [weak self] _ in
+        self?.setBlue(self?.menuController)
+    }
+    private lazy var pinkItem = UIMenuItem(title: "P", image: UIImage(readerImageNamed: "pink-marker")) { [weak self] _ in
+        self?.setPink(self?.menuController)
+    }
+    private lazy var underlineItem = UIMenuItem(title: "U", image: UIImage(readerImageNamed: "underline-marker")) { [weak self] _ in
+        self?.setUnderline(self?.menuController)
+    }
+
     func createMenu(options: Bool) {
         guard (self.readerConfig.useReaderMenuController == true) else {
             return
         }
 
         isShare = options
-
-        let colors = UIImage(readerImageNamed: "colors-marker")
-        let share = UIImage(readerImageNamed: "share-marker")
-        let remove = UIImage(readerImageNamed: "no-marker")
-        let yellow = UIImage(readerImageNamed: "yellow-marker")
-        let green = UIImage(readerImageNamed: "green-marker")
-        let blue = UIImage(readerImageNamed: "blue-marker")
-        let pink = UIImage(readerImageNamed: "pink-marker")
-        let underline = UIImage(readerImageNamed: "underline-marker")
-
-        let menuController = UIMenuController.shared
-
-        let highlightItem = UIMenuItem(title: self.readerConfig.localizedHighlightMenu, action: #selector(highlight(_:)))
-        let highlightNoteItem = UIMenuItem(title: self.readerConfig.localizedHighlightNote, action: #selector(highlightWithNote(_:)))
-        let editNoteItem = UIMenuItem(title: self.readerConfig.localizedHighlightNote, action: #selector(updateHighlightNote(_:)))
-        let playAudioItem = UIMenuItem(title: self.readerConfig.localizedPlayMenu, action: #selector(play(_:)))
-        let defineItem = UIMenuItem(title: self.readerConfig.localizedDefineMenu, action: #selector(define(_:)))
-        let colorsItem = UIMenuItem(title: "C", image: colors) { [weak self] _ in
-            self?.colors(menuController)
-        }
-        let shareItem = UIMenuItem(title: "S", image: share) { [weak self] _ in
-            self?.share(menuController)
-        }
-        let removeItem = UIMenuItem(title: "R", image: remove) { [weak self] _ in
-            self?.remove(menuController)
-        }
-        let yellowItem = UIMenuItem(title: "Y", image: yellow) { [weak self] _ in
-            self?.setYellow(menuController)
-        }
-        let greenItem = UIMenuItem(title: "G", image: green) { [weak self] _ in
-            self?.setGreen(menuController)
-        }
-        let blueItem = UIMenuItem(title: "B", image: blue) { [weak self] _ in
-            self?.setBlue(menuController)
-        }
-        let pinkItem = UIMenuItem(title: "P", image: pink) { [weak self] _ in
-            self?.setPink(menuController)
-        }
-        let underlineItem = UIMenuItem(title: "U", image: underline) { [weak self] _ in
-            self?.setUnderline(menuController)
-        }
 
         var menuItems: [UIMenuItem] = []
 
