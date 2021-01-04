@@ -80,7 +80,11 @@ open class FolioReaderWebView: WKWebView {
 
     // MARK: - UIMenuController - Actions
 
-    @objc func share(_ sender: UIMenuController) {
+    @objc func share(_ sender: UIMenuController?) {
+        guard let sender = sender else {
+            return
+        }
+
         let alertController = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
 
         let shareImage = UIAlertAction(title: self.readerConfig.localizedShareImageQuote, style: .default, handler: { (action) -> Void in
@@ -363,15 +367,15 @@ open class FolioReaderWebView: WKWebView {
     }
     
     open func setMenuVisible(_ menuVisible: Bool, animated: Bool = true, andRect rect: CGRect = CGRect.zero) {
-        if !menuVisible && isShare || !menuVisible && isColors {
+        if !menuVisible {
             isColors = false
             isShare = false
+
+            createMenu(options: false)
         }
         
-        if menuVisible  {
-            if !rect.equalTo(CGRect.zero) {
-                UIMenuController.shared.setTargetRect(rect, in: self)
-            }
+        if menuVisible && !rect.equalTo(CGRect.zero) {
+            UIMenuController.shared.setTargetRect(rect, in: self)
         }
         
         UIMenuController.shared.setMenuVisible(menuVisible, animated: animated)
