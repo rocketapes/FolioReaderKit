@@ -458,16 +458,17 @@ class FREpubParser: NSObject, SSZipArchiveDelegate {
     fileprivate func readSpine(_ tags: [AEXMLElement]) -> FRSpine {
         let spine = FRSpine()
 
+        let coverImageId = book.metadata.find(byName: "cover")?.content
+
         for tag in tags {
             guard let idref = tag.attributes["idref"],
-                  tag.attributes["linear"] == "yes" else {
+                  book.resources.containsById(idref),
+                  let resource = book.resources.findById(idref),
+                  tag.attributes["linear"] == "yes" || resource.properties == "cover-image" || idref == coverImageId else {
                 continue
             }
 
-            if book.resources.containsById(idref),
-               let resource = book.resources.findById(idref) {
-                spine.spineReferences.append(Spine(resource: resource))
-            }
+            spine.spineReferences.append(Spine(resource: resource))
         }
         return spine
     }
