@@ -464,7 +464,7 @@ class FREpubParser: NSObject, SSZipArchiveDelegate {
             guard let idref = tag.attributes["idref"],
                   book.resources.containsById(idref),
                   let resource = book.resources.findById(idref),
-                  tag.attributes["linear"] == "yes" || resource.properties == "cover-image" || idref == coverImageId else {
+                  tag.attributes["linear"] == "yes" || resource.properties == "cover-image" || idref == coverImageId || idref == "cover" else {
                 continue
             }
 
