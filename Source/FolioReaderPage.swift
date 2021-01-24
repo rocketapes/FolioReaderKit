@@ -352,30 +352,30 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
                 let href = splitedPath[1].trimmingCharacters(in: CharacterSet(charactersIn: "/"))
                 let hrefPage = (self.folioReader.readerCenter?.findPageByHref(href) ?? 0) + 1
                 
-                // IID handle click on non linear item like a image. Show a zoomable single page
-                let spine = self.book.spine.spineReferences.filter { (aSpine) -> Bool in
-                    return aSpine.resource.href == href
-                }
-                if let aSpine = spine.first {
-                    openModal(resource: aSpine.resource)
+                // Handle internal url with anchor
+                
+                if let anchor = anchorFromURL {
+                    if (hrefPage == pageNumber) {
+                        // Handle internal #anchor
+                        handleAnchor(anchor, avoidBeginningAnchors: false, animated: true)
+                       
+                    } else {
+                        self.folioReader.readerCenter?.tempAnchor = anchorFromURL
+                        self.folioReader.readerCenter?.changePageWith(href: href, animated: true)
+                      
+                    }
                     decisionHandler(WKNavigationActionPolicy.cancel)
                     return
                 }
-                // END IID
                 
-                if (hrefPage == pageNumber) {
-                    // Handle internal #anchor
-                    if let anchor = anchorFromURL {
-                        handleAnchor(anchor, avoidBeginningAnchors: false, animated: true)
-                        decisionHandler(WKNavigationActionPolicy.cancel)
-                        return
-                    }
-                } else {
-                    self.folioReader.readerCenter?.tempAnchor = anchorFromURL
-                    self.folioReader.readerCenter?.changePageWith(href: href, animated: true)
-                }
+                // Handle internal url without anchor
+
+                // IID handle click on non linear item like a image. Show a zoomable single page
+                openModal(resource: href)
                 decisionHandler(WKNavigationActionPolicy.cancel)
                 return
+                // END IID
+
             }
 
             // Handle internal #anchor
@@ -689,9 +689,9 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     }
     
     //IID
-    func openModal(resource: FRResource ) {
+    func openModal(resource: String ) {
         //
-        let dict: Dictionary =  ["fullHref" : resource.fullHref!]
+        let dict: Dictionary =  ["fullHref" : resource]
         NotificationCenter.default.post(name: Notification.Name("ShowNonInlineContent"), object: nil, userInfo: dict)
     }
     //END IID
