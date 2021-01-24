@@ -1248,6 +1248,10 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
 
     // MARK: - ScrollView Delegate
 
+    open func scrollViewWillBeginZooming(_ scrollView: UIScrollView, with view: UIView?) {
+        scrollView.pinchGestureRecognizer?.isEnabled = false
+    }
+    
     open func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
         self.isScrolling = true
         clearRecentlyScrolled()
