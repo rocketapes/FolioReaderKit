@@ -187,7 +187,7 @@ class FolioReaderSearchView: UIViewController {
     }
     
     public func getChapterName(page: Int) -> String? {
-        for item in self.folioReader.readerContainer?.book.flatTableOfContents ?? [] {
+        for item in self.folioReader.readerContainer?.book.flatTableOfContents() ?? [] {
             guard
                 let reference = self.folioReader.readerContainer?.book.spine.spineReferences[safe: page],
                 let resource = item.resource,

@@ -1058,7 +1058,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
                 }
             }
         }
-        search(book.flatTableOfContents)
+        search(book.tableOfContents)
 
         return foundResource
     }
@@ -1081,7 +1081,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
      Find and return the current chapter name.
      */
     public func getCurrentChapterName() -> String? {
-        for item in self.book.flatTableOfContents {
+        for item in self.book.flatTableOfContents() {
             guard
                 let reference = self.book.spine.spineReferences[safe: (self.currentPageNumber - 1)],
                 let resource = item.resource,

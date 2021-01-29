@@ -203,7 +203,6 @@ class FREpubParser: NSObject, SSZipArchiveDelegate {
 
         // The book TOC
         book.tableOfContents = findTableOfContents()
-        book.flatTableOfContents = flatTOC
 
         // Read Spine
         let spine = xmlDoc.root["spine"]
@@ -361,27 +360,6 @@ class FREpubParser: NSObject, SSZipArchiveDelegate {
             }
             return toc
         }
-    }
-
-    // MARK: - Recursive add items to a list
-
-    var flatTOC: [FRTocReference] {
-        var tocItems = [FRTocReference]()
-
-        for item in book.tableOfContents {
-            tocItems.append(item)
-            tocItems.append(contentsOf: countTocChild(item))
-        }
-        return tocItems
-    }
-
-    func countTocChild(_ item: FRTocReference) -> [FRTocReference] {
-        var tocItems = [FRTocReference]()
-
-        item.children.forEach {
-            tocItems.append($0)
-        }
-        return tocItems
     }
 
     /// Read and parse <metadata>.

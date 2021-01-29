@@ -497,7 +497,7 @@ open class FolioReaderAudioPlayer: NSObject {
 
         currentHref = chapter.href
 
-        for item in (self.book.flatTableOfContents ?? []) {
+        for item in self.book.flatTableOfContents() {
             if let resource = item.resource , resource.href == currentHref {
                 return item.title
             }
