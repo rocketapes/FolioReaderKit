@@ -22,7 +22,25 @@ open class FRBook: NSObject {
     public var name: String?
     public var resources = FRResources()
     public var tableOfContents: [FRTocReference]!
-    public var flatTableOfContents: [FRTocReference]!
+
+    public func flatTableOfContents(withDepth depth: UInt = 3) -> [FRTocReference] {
+        addChilds(of: tableOfContents, depth: depth)
+    }
+
+    private func addChilds(of items: [FRTocReference], depth: UInt) -> [FRTocReference] {
+        guard depth > 0 else {
+            return []
+        }
+
+        var tocItems = [FRTocReference]()
+
+        for item in items {
+            tocItems.append(item)
+            tocItems.append(contentsOf: addChilds(of: item.children, depth: depth - 1))
+        }
+
+        return tocItems
+    }
 
     var hasAudio: Bool {
         return smils.smils.count > 0

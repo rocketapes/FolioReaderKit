@@ -203,7 +203,6 @@ class FREpubParser: NSObject, SSZipArchiveDelegate {
 
         // The book TOC
         book.tableOfContents = findTableOfContents()
-        book.flatTableOfContents = flatTOC
 
         // Read Spine
         let spine = xmlDoc.root["spine"]
@@ -363,27 +362,6 @@ class FREpubParser: NSObject, SSZipArchiveDelegate {
         }
     }
 
-    // MARK: - Recursive add items to a list
-
-    var flatTOC: [FRTocReference] {
-        var tocItems = [FRTocReference]()
-
-        for item in book.tableOfContents {
-            tocItems.append(item)
-            tocItems.append(contentsOf: countTocChild(item))
-        }
-        return tocItems
-    }
-
-    func countTocChild(_ item: FRTocReference) -> [FRTocReference] {
-        var tocItems = [FRTocReference]()
-
-        item.children.forEach {
-            tocItems.append($0)
-        }
-        return tocItems
-    }
-
     /// Read and parse <metadata>.
     ///
     /// - Parameter tags: XHTML tags
@@ -458,16 +436,17 @@ class FREpubParser: NSObject, SSZipArchiveDelegate {
     fileprivate func readSpine(_ tags: [AEXMLElement]) -> FRSpine {
         let spine = FRSpine()
 
+        let coverImageId = book.metadata.find(byName: "cover")?.content
+
         for tag in tags {
             guard let idref = tag.attributes["idref"],
-                  tag.attributes["linear"] == "yes" else {
+                  book.resources.containsById(idref),
+                  let resource = book.resources.findById(idref),
+                  tag.attributes["linear"] == "yes" || resource.properties == "cover-image" || idref == coverImageId || idref == "cover" else {
                 continue
             }
 
-            if book.resources.containsById(idref),
-               let resource = book.resources.findById(idref) {
-                spine.spineReferences.append(Spine(resource: resource))
-            }
+            spine.spineReferences.append(Spine(resource: resource))
         }
         return spine
     }

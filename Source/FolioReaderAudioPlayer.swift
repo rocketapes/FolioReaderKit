@@ -141,7 +141,8 @@ open class FolioReaderAudioPlayer: NSObject {
         completion?()
     }
 
-    @objc func pause() {
+    @discardableResult
+    @objc func pause() -> MPRemoteCommandHandlerStatus {
         playing = false
 
         if !isTextToSpeech {
@@ -153,19 +154,23 @@ open class FolioReaderAudioPlayer: NSObject {
                 synthesizer.pauseSpeaking(at: .word)
             }
         }
+        return .success
     }
 
-    @objc func togglePlay() {
+    @discardableResult
+    @objc func togglePlay() -> MPRemoteCommandHandlerStatus {
         isPlaying() ? pause() : play()
     }
 
-    @objc func play() {
+    @discardableResult
+    @objc func play() -> MPRemoteCommandHandlerStatus  {
         if book.hasAudio {
-            guard let currentPage = self.folioReader.readerCenter?.currentPage else { return }
-            currentPage.webView?.js("playAudio()")
+            guard let currentPage = self.folioReader.readerCenter?.currentPage else { return .commandFailed}
+            currentPage.webView?.js("playAudio()") { _ in }
         } else {
             self.readCurrentSentence()
         }
+        return .success
     }
 
     func isPlaying() -> Bool {
@@ -216,7 +221,8 @@ open class FolioReaderAudioPlayer: NSObject {
         playNextChapter()
     }
 
-    @objc func playPrevChapter() {
+    @discardableResult
+    @objc func playPrevChapter() -> MPRemoteCommandHandlerStatus {
         stopPlayerTimer()
         // Wait for "currentPage" to update, then request to play audio
         self.folioReader.readerCenter?.changePageToPrevious {
@@ -226,9 +232,11 @@ open class FolioReaderAudioPlayer: NSObject {
                 self.pause()
             }
         }
+        return .success
     }
 
-    @objc func playNextChapter() {
+    @discardableResult
+    @objc func playNextChapter() -> MPRemoteCommandHandlerStatus {
         stopPlayerTimer()
         // Wait for "currentPage" to update, then request to play audio
         self.folioReader.readerCenter?.changePageToNext {
@@ -236,6 +244,7 @@ open class FolioReaderAudioPlayer: NSObject {
                 self.play()
             }
         }
+        return .success
     }
 
 
@@ -368,7 +377,8 @@ open class FolioReaderAudioPlayer: NSObject {
         }
 
         let playbackActiveClass = book.playbackActiveClass
-        guard let sentence = currentPage.webView?.js("getSentenceWithIndex('\(playbackActiveClass)')") else {
+        currentPage.webView?.js("getSentenceWithIndex('\(playbackActiveClass)')") { sentence in
+            guard let sentence = sentence else {
             if (readerCenter.isLastPage() == true) {
                 self.stop()
             } else {
@@ -376,14 +386,15 @@ open class FolioReaderAudioPlayer: NSObject {
             }
 
             return
-        }
+            }
 
         guard let href = readerCenter.getCurrentChapter()?.href else {
             return
         }
-
         // TODO QUESTION: The previous code made it possible to call `playText` with the parameter `href` being an empty string. Was that valid? should this logic be kept?
-        self.playText(href, text: sentence)
+             self.playText(href, text: sentence)
+        }
+     
     }
 
     func readCurrentSentence() {
@@ -396,7 +407,7 @@ open class FolioReaderAudioPlayer: NSObject {
             if synthesizer.isSpeaking {
                 stopSynthesizer(immediate: false, completion: {
                     if let currentPage = self.folioReader.readerCenter?.currentPage {
-                        currentPage.webView?.js("resetCurrentSentenceIndex()")
+                        currentPage.webView?.js("resetCurrentSentenceIndex()") { _ in }
                     }
                     self.speakSentence()
                 })
@@ -441,7 +452,7 @@ open class FolioReaderAudioPlayer: NSObject {
 
         // Get book Artwork
         if let coverImage = self.book.coverImage, let artwork = UIImage(contentsOfFile: coverImage.fullHref) {
-            let albumArt = MPMediaItemArtwork(image: artwork)
+            let albumArt = MPMediaItemArtwork(boundsSize: artwork.size, requestHandler: { _ in artwork })
             songInfo[MPMediaItemPropertyArtwork] = albumArt
         }
 
@@ -486,7 +497,7 @@ open class FolioReaderAudioPlayer: NSObject {
 
         currentHref = chapter.href
 
-        for item in (self.book.flatTableOfContents ?? []) {
+        for item in self.book.flatTableOfContents() {
             if let resource = item.resource , resource.href == currentHref {
                 return item.title
             }

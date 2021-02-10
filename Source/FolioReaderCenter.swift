@@ -208,7 +208,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         collectionView?.register(FolioReaderPage.self, forCellWithReuseIdentifier: kReuseCellIdentifier)
 
         // Configure navigation bar and layout
-        automaticallyAdjustsScrollViewInsets = false
+        collectionView.contentInsetAdjustmentBehavior = .never
         extendedLayoutIncludesOpaqueBars = true
         configureNavBar()
 
@@ -511,6 +511,10 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
                     guard var html = content, !html.isEmpty else {
                         return
                     }
+                    
+                    // Inject viewport
+                    let viewportTag = "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, shrink-to-fit=no\">"
+                    
                     let mediaOverlayStyleColors = "\"\(self.readerConfig.mediaOverlayColor.hexString(false))\", \"\(self.readerConfig.mediaOverlayColor.highlightColor().hexString(false))\""
                     
                     // Inject CSS and js
@@ -527,7 +531,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
                     let cssFilePath = Bundle.frameworkBundle().path(forResource: "Style", ofType: "css")
                     let cssTag = "<link rel=\"stylesheet\" type=\"text/css\" href=\"\(cssFilePath!)\">"
                     
-                    let toInject = "<head>\n\(cssTag)\n\(jsFilesTags)\n"
+                    let toInject = "<head>\n\(cssTag)\n\(jsFilesTags)\n\(viewportTag)\n"
                     html = html.replacingOccurrences(of: "<head>", with: toInject)
                     
                     // Font class name
@@ -1054,7 +1058,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
                 }
             }
         }
-        search(book.flatTableOfContents)
+        search(book.tableOfContents)
 
         return foundResource
     }
@@ -1077,7 +1081,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
      Find and return the current chapter name.
      */
     public func getCurrentChapterName() -> String? {
-        for item in self.book.flatTableOfContents {
+        for item in self.book.flatTableOfContents() {
             guard
                 let reference = self.book.spine.spineReferences[safe: (self.currentPageNumber - 1)],
                 let resource = item.resource,
@@ -1126,9 +1130,10 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
     @objc func shareChapter(_ sender: UIBarButtonItem) {
         guard let currentPage = currentPage else { return }
 
-        if let chapterText = currentPage.webView?.js("getBodyText()") {
+       	currentPage.webView?.js("getBodyText()") { chapterText in
+            guard let chapterText = chapterText else { return }
             let htmlText = chapterText.replacingOccurrences(of: "[\\n\\r]+", with: "<br />", options: .regularExpression)
-            var subject = readerConfig.localizedShareChapterSubject
+            var subject = self.readerConfig.localizedShareChapterSubject
             var html = ""
             var text = ""
             var bookTitle = ""
@@ -1143,7 +1148,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
             }
 
             // Get chapter name
-            if let chapter = getCurrentChapterName() {
+            if let chapter = self.getCurrentChapterName() {
                 chapterName = chapter
             }
 
@@ -1155,17 +1160,17 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
             // Sharing html and text
             html = "<html><body>"
             html += "<br /><hr> <p>\(htmlText)</p> <hr><br />"
-            html += "<center><p style=\"color:gray\">"+readerConfig.localizedShareAllExcerptsFrom+"</p>"
+            html += "<center><p style=\"color:gray\">"+self.readerConfig.localizedShareAllExcerptsFrom+"</p>"
             html += "<b>\(bookTitle)</b><br />"
-            html += readerConfig.localizedShareBy+" <i>\(authorName)</i><br />"
+            html += self.readerConfig.localizedShareBy+" <i>\(authorName)</i><br />"
 
-            if let bookShareLink = readerConfig.localizedShareWebLink {
+            if let bookShareLink = self.readerConfig.localizedShareWebLink {
                 html += "<a href=\"\(bookShareLink.absoluteString)\">\(bookShareLink.absoluteString)</a>"
                 shareItems.append(bookShareLink as AnyObject)
             }
 
             html += "</center></body></html>"
-            text = "\(chapterName)\n\n“\(chapterText)” \n\n\(bookTitle) \n\(readerConfig.localizedShareBy) \(authorName)"
+            text = "\(chapterName)\n\n“\(chapterText)” \n\n\(bookTitle) \n\(self.readerConfig.localizedShareBy) \(authorName)"
 
             let act = FolioReaderSharingProvider(subject: subject, text: text, html: html)
             shareItems.insert(contentsOf: [act, "" as AnyObject], at: 0)
@@ -1178,7 +1183,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
                 actv.barButtonItem = sender
             }
 
-            present(activityViewController, animated: true, completion: nil)
+            self.present(activityViewController, animated: true, completion: nil)
         }
     }
 
@@ -1243,6 +1248,10 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
 
     // MARK: - ScrollView Delegate
 
+    open func scrollViewWillBeginZooming(_ scrollView: UIScrollView, with view: UIView?) {
+        scrollView.pinchGestureRecognizer?.isEnabled = false
+    }
+    
     open func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
         self.isScrolling = true
         clearRecentlyScrolled()
@@ -1360,11 +1369,12 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         
         // Perform the page after a short delay as the collection view hasn't completed it's transition if this method is called (the index paths aren't right during fast scrolls).
         delay(0.2, closure: { [weak self] in
-            if (self?.readerConfig.scrollDirection == .horizontalWithVerticalContent),
-                let cell = ((scrollView.superview as? UIWebView)?.delegate as? FolioReaderPage) {
-                let currentIndexPathRow = cell.pageNumber - 1
-                self?.currentWebViewScrollPositions[currentIndexPathRow] = scrollView.contentOffset
-            }
+            //TODO uncomented because of UIWebView usage
+//            if (self?.readerConfig.scrollDirection == .horizontalWithVerticalContent),
+//                let cell = ((scrollView.superview as? WKWebView)?.delegate as? FolioReaderPage) {
+//                let currentIndexPathRow = cell.pageNumber - 1
+//                self?.currentWebViewScrollPositions[currentIndexPathRow] = scrollView.contentOffset
+//            }
 
             if (scrollView is UICollectionView) {
                 guard let instance = self else {
@@ -1558,7 +1568,7 @@ extension FolioReaderCenter: FolioReaderPageDelegate {
         // then check rangy
         if let position = lastRead.position, !position.isEmpty {
             if let rangyId = lastRead.rangyId {
-                page.webView?.js("setLastRead('\(position)')")
+                page.webView?.js("setLastRead('\(position)')")  { _ in }
                 page.scrollTo(rangyId, animated: false, verticalInset: false)
             }
             return
@@ -1724,7 +1734,7 @@ extension String {
 
 extension FolioReaderCenter: FolioReaderSearchViewDelegate {
     func didClearAllSearch(view: FolioReaderSearchView) {
-        currentPage?.webView?.js("clearAllSearchResults();")
+        currentPage?.webView?.js("clearAllSearchResults();")  { _ in }
     }
     
     func searchingDidStart(keyword: String, view: FolioReaderSearchView) {
