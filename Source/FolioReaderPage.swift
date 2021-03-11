@@ -39,7 +39,7 @@ import WebKit
 
 open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestureRecognizerDelegate {
     weak var delegate: FolioReaderPageDelegate?
-    weak var readerContainer: FolioReaderContainer?
+    private var readerContainer: FolioReaderContainer?
 
     /// The index of the current page. Note: The index start at 1!
     open var pageNumber: Int!
@@ -112,10 +112,12 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     
     open override func prepareForReuse() {
         super.prepareForReuse()
-        webView?.alpha = 0
-        if let blank =  URL.init(string: "about:blank") {
-            webView?.load(URLRequest.init(url:blank))
-        }
+        webView?.removeFromSuperview()
+        webView?.gestureRecognizers?.forEach({ gesture in
+            webView?.removeGestureRecognizer(gesture)
+        })
+        webView = nil
+        resource = nil
     }
     
     // IID
@@ -664,8 +666,8 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
 
     // MARK: ColorView fix for horizontal layout
     @objc func refreshPageMode() {
-        guard let webView = webView else { return }
-
+//        guard let webView = webView else { return }
+//
 //        if (self.folioReader.nightMode == true) {
 //            // omit create webView and colorView
 //            let script = "document.documentElement.offsetHeight"

@@ -387,42 +387,14 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
     }
 
     func setScrollDirection(_ direction: FolioReaderScrollDirection) {
-        guard let currentPage = self.currentPage, let webView = currentPage.webView else {
-            return
-        }
-
-        let pageScrollView = webView.scrollView
-
-        // Get internal page offset before layout change
-        self.updatePageOffsetRate()
-        // Change layout
-        self.readerConfig.scrollDirection = direction
-        self.collectionViewLayout.scrollDirection = .direction(withConfiguration: self.readerConfig)
-        self.currentPage?.setNeedsLayout()
-        self.collectionView.collectionViewLayout.invalidateLayout()
-        self.collectionView.setContentOffset(frameForPage(self.currentPageNumber).origin, animated: false)
-
-        // Page progressive direction
-        self.setCollectionViewProgressiveDirection()
-        delay(0.2) { self.setPageProgressiveDirection(currentPage) }
-
-
-        /**
-         *  This delay is needed because the page will not be ready yet
-         *  so the delay wait until layout finished the changes.
-         */
-        delay(0.1) {
-            var pageOffset = (pageScrollView.contentSize.forDirection(withConfiguration: self.readerConfig) * self.pageOffsetRate)
-
-            // Fix the offset for paged scroll
-            if (self.readerConfig.scrollDirection == .horizontal && self.pageWidth != 0) {
-                let page = round(pageOffset / self.pageWidth)
-                pageOffset = (page * self.pageWidth)
-            }
-
-            let pageOffsetPoint = self.readerConfig.isDirection(CGPoint(x: 0, y: pageOffset), CGPoint(x: pageOffset, y: 0), CGPoint(x: 0, y: pageOffset))
-            pageScrollView.setContentOffset(pageOffsetPoint, animated: true)
-        }
+        updatePageOffsetRate()
+        let pageNumber = currentPageNumber
+        readerConfig.scrollDirection = direction
+        collectionViewLayout.scrollDirection = .direction(withConfiguration: self.readerConfig)
+        collectionView.collectionViewLayout.invalidateLayout()
+        reloadData()
+        changePageWith(page: pageNumber)
+        currentPage?.layoutSubviews()
     }
 
     // MARK: Status bar and Navigation bar
