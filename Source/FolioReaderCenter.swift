@@ -797,7 +797,9 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
     }
 
     open func changePageWith(href: String, animated: Bool = false, completion: (() -> Void)? = nil) {
-        let item = findPageByHref(href)
+        guard let item = findPageByHref(href) else {
+            return
+        }
         let indexPath = IndexPath(row: item, section: 0)
         changePageWith(indexPath: indexPath, animated: animated, completion: { () -> Void in
             self.updateCurrentPage {
@@ -808,9 +810,8 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
 
     open func changePageWith(href: String, andAudioMarkID markID: String) {
         if recentlyScrolled { return } // if user recently scrolled, do not change pages or scroll the webview
-        guard let currentPage = currentPage else { return }
+        guard let currentPage = currentPage, let item = findPageByHref(href) else { return }
 
-        let item = findPageByHref(href)
         let pageUpdateNeeded = item+1 != currentPage.pageNumber
         let indexPath = IndexPath(row: item, section: 0)
         changePageWith(indexPath: indexPath, animated: true) { () -> Void in
@@ -1007,7 +1008,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
     /**
      Find a page by href.
      */
-    public func findPageByHref(_ href: String) -> Int {
+    public func findPageByHref(_ href: String) -> Int? {
         var count = 0
         for item in self.book.spine.spineReferences {
             if item.resource.href == href {
@@ -1015,7 +1016,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
             }
             count += 1
         }
-        return count
+        return nil
     }
 
     /**

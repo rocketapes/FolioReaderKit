@@ -352,12 +352,11 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
                 }
 
                 let href = splitedPath[1].trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-                let hrefPage = (self.folioReader.readerCenter?.findPageByHref(href) ?? 0) + 1
+                let hrefPage = self.folioReader.readerCenter?.findPageByHref(href)
                 
                 // Handle internal url with anchor
-                
                 if let anchor = anchorFromURL {
-                    if (hrefPage == pageNumber) {
+                    if (hrefPage == pageNumber - 1) {
                         // Handle internal #anchor
                         handleAnchor(anchor, avoidBeginningAnchors: false, animated: true)
                        
@@ -366,6 +365,10 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
                         self.folioReader.readerCenter?.changePageWith(href: href, animated: true)
                       
                     }
+                    decisionHandler(WKNavigationActionPolicy.cancel)
+                    return
+                } else if hrefPage != nil {
+                    self.folioReader.readerCenter?.changePageWith(href: href, animated: true)
                     decisionHandler(WKNavigationActionPolicy.cancel)
                     return
                 }
