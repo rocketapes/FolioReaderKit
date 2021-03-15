@@ -16,11 +16,7 @@ open class FolioReaderWebView: WKWebView {
     var isShare = false
     var isOneWord = false
     
-    fileprivate(set) var cssOverflowProperty = "scroll" {
-        didSet {
-            FolioReaderScript.cssInjection(overflow: cssOverflowProperty).addIfNeeded(to: self)
-        }
-    }
+    fileprivate(set) var cssOverflowProperty = "scroll"
 
     fileprivate weak var readerContainer: FolioReaderContainer?
 
@@ -405,5 +401,8 @@ open class FolioReaderWebView: WKWebView {
             scrollView.bounces = false
             break
         }
+
+        FolioReaderScript.cssInjection(overflow: cssOverflowProperty).addIfNeeded(to: self)
+        reload()
     }
 }

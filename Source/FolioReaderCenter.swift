@@ -387,6 +387,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
     }
 
     func setScrollDirection(_ direction: FolioReaderScrollDirection) {
+        collectionView.isHidden = true
         updatePageOffsetRate()
         let pageNumber = currentPageNumber
         readerConfig.scrollDirection = direction
@@ -394,7 +395,12 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         collectionView.collectionViewLayout.invalidateLayout()
         reloadData()
         changePageWith(page: pageNumber)
-        currentPage?.layoutSubviews()
+        currentPage?.webView?.removeFromSuperview()
+        currentPage?.webView = nil
+        _ = configure(readerPageCell: currentPage, atIndexPath: IndexPath(row: pageNumber-1, section: 0))
+        delay(0.5) {
+            self.collectionView.isHidden = false
+        }
     }
 
     // MARK: Status bar and Navigation bar
