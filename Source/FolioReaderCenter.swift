@@ -387,8 +387,8 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
     }
 
     func setScrollDirection(_ direction: FolioReaderScrollDirection) {
-        collectionView.isHidden = true
         updatePageOffsetRate()
+        collectionView.isHidden = true
         let pageNumber = currentPageNumber
         readerConfig.scrollDirection = direction
         collectionViewLayout.scrollDirection = .direction(withConfiguration: self.readerConfig)
@@ -399,6 +399,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         currentPage?.webView = nil
         _ = configure(readerPageCell: currentPage, atIndexPath: IndexPath(row: pageNumber-1, section: 0))
         delay(0.5) {
+            self.fixPageOffset(animated: false)
             self.collectionView.isHidden = false
         }
     }
@@ -617,6 +618,14 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
 
         scrollScrubber?.setSliderVal()
 
+        fixPageOffset(animated: true)
+    }
+
+    private func fixPageOffset(animated: Bool) {
+        guard let currentPage = currentPage else {
+            return
+        }
+
         // After rotation fix internal page offset
         var pageOffset = (currentPage.webView?.scrollView.contentSize.forDirection(withConfiguration: self.readerConfig) ?? 0) * pageOffsetRate
 
@@ -627,7 +636,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         }
 
         let pageOffsetPoint = self.readerConfig.isDirection(CGPoint(x: 0, y: pageOffset), CGPoint(x: pageOffset, y: 0), CGPoint(x: 0, y: pageOffset))
-        currentPage.webView?.scrollView.setContentOffset(pageOffsetPoint, animated: true)
+        currentPage.webView?.scrollView.setContentOffset(pageOffsetPoint, animated: animated)
     }
 
     override open func willAnimateRotation(to toInterfaceOrientation: UIInterfaceOrientation, duration: TimeInterval) {
