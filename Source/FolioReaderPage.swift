@@ -521,22 +521,15 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
      Scrolls the page to bottom
      */
     open func scrollPageToBottom() {
-//        guard let webView = webView else { return }
-//        let scrollHeight = webView.scrollHeight
-//        let scrollWidth = webView.scrollWidth
-//        let bottomOffset = self.readerConfig.isDirection(
-//            CGPoint(x: 0, y: scrollHeight - webView.scrollView.bounds.height),
-//            CGPoint(x: scrollWidth - webView.scrollView.bounds.width, y: 0),
-//            CGPoint(x: scrollWidth - webView.scrollView.bounds.width, y: 0)
-//        )
-//
-//        if bottomOffset.forDirection(withConfiguration: self.readerConfig) >= 0 {
-//            DispatchQueue.main.async {
-//                let javascript = "window.scrollBy(\(bottomOffset.x), \(bottomOffset.y))"
-//                self.webView?.stringByEvaluatingJavaScript(from: javascript)
-////                self.webView?.scrollView.setContentOffset(bottomOffset, animated: false)
-//            }
-//        }
+        guard let scrollView = webView?.scrollView else {
+            return
+        }
+        let offset = readerConfig.isDirection(scrollView.contentSize.height,
+                                              scrollView.contentSize.width,
+                                              scrollView.contentSize.width)
+        DispatchQueue.main.async {
+            self.scrollPageToOffset(offset, animated: false)
+        }
     }
     // IID
    
