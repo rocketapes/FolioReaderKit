@@ -110,16 +110,6 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
 
     }
     
-    open override func prepareForReuse() {
-        super.prepareForReuse()
-        webView?.removeFromSuperview()
-        webView?.gestureRecognizers?.forEach({ gesture in
-            webView?.removeGestureRecognizer(gesture)
-        })
-        webView = nil
-        resource = nil
-    }
-    
     // IID
     @objc func menuDidHide() {
         self.menuIsVisible = false
