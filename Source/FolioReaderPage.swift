@@ -515,9 +515,9 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
         guard let scrollView = webView?.scrollView else {
             return
         }
-        let offset = readerConfig.isDirection(scrollView.contentSize.height,
-                                              scrollView.contentSize.width,
-                                              scrollView.contentSize.width)
+        let offset = readerConfig.isDirection(scrollView.contentSize.height - scrollView.frame.height,
+                                              scrollView.contentSize.width - scrollView.frame.width,
+                                              scrollView.contentSize.width - scrollView.frame.width)
         DispatchQueue.main.async {
             self.scrollPageToOffset(offset, animated: false)
         }
