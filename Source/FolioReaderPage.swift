@@ -214,14 +214,6 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
             }
         }
         
-        if (self.folioReader.readerCenter?.pageScrollDirection == direction &&
-            self.readerConfig.scrollDirection != .horizontalWithVerticalContent &&
-            (self.folioReader.readerCenter?.isScrolling == true ||
-             self.folioReader.readerCenter?.shouldDelayScrollingToBottomUntilWebViewDidLoad == true) ) {
-            self.folioReader.readerCenter?.shouldDelayScrollingToBottomUntilWebViewDidLoad = false
-            scrollPageToBottom()
-        }
-        
         UIView.animate(withDuration: 0.2, animations: {webView.alpha = 1}, completion: { finished in
             webView.isColors = false
             self.webView?.createMenu(options: false)
@@ -265,6 +257,15 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
                 return string
             }
         }
+
+        if (self.folioReader.readerCenter?.pageScrollDirection == direction &&
+            self.readerConfig.scrollDirection != .horizontalWithVerticalContent &&
+            (self.folioReader.readerCenter?.isScrolling == true ||
+             self.folioReader.readerCenter?.shouldDelayScrollingToBottomUntilWebViewDidLoad == true) ) {
+            self.folioReader.readerCenter?.shouldDelayScrollingToBottomUntilWebViewDidLoad = false
+            scrollPageToBottom()
+        }
+
         if (rangies.count > 0) {
             self.webView?.js("setHighlight('\(rangies)')")  { _ in
                 self.delegate?.pageDidLoad?(self)
