@@ -396,6 +396,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         collectionView.collectionViewLayout.invalidateLayout()
         reloadData()
         changePageWith(page: pageNumber)
+        currentPage?.webView?.stopLoading()
         currentPage?.webView?.removeFromSuperview()
         currentPage?.webView = nil
         _ = configure(readerPageCell: currentPage, atIndexPath: IndexPath(row: pageNumber-1, section: 0))
