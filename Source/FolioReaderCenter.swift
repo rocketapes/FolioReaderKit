@@ -337,7 +337,8 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         self.configureNavBarButtons()
         self.setCollectionViewProgressiveDirection()
 
-        if self.readerConfig.loadSavedPositionForCurrentBook {
+        if isFirstLoad,
+           self.readerConfig.loadSavedPositionForCurrentBook {
             guard let lastRead = FolioLastRead.lastRead(from: self.rwBook?.id ?? 0),
                 lastRead.page >= 0
             else {
