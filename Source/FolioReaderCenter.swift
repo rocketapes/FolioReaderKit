@@ -340,8 +340,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         if isFirstLoad,
            self.readerConfig.loadSavedPositionForCurrentBook {
             guard let lastRead = FolioLastRead.lastRead(from: self.rwBook?.id ?? 0),
-                lastRead.page >= 0
-            else {
+                lastRead.page >= 0 else {
                 self.currentPageNumber = 1
                 return
             }
@@ -689,7 +688,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
             self.currentPageNumber = currentIndexPath.row+1
         }
 
-        self.nextPageNumber = (((self.currentPageNumber + 1) <= totalPages) ? (self.currentPageNumber + 1) : self.currentPageNumber)
+        self.nextPageNumber = min(currentPageNumber + 1, totalPages - 1)
 
         // Set pages
         guard let currentPage = currentPage else {
@@ -736,7 +735,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
 
     func getCurrentIndexPath() -> IndexPath {
         let indexPaths = collectionView.indexPathsForVisibleItems
-        var indexPath = IndexPath()
+        var indexPath = IndexPath(row: 0, section: 0)
 
         if indexPaths.count > 1 {
             let first = indexPaths.first!
@@ -744,20 +743,12 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
 
             switch self.pageScrollDirection {
             case .up, .left:
-                if first.compare(last) == .orderedAscending {
-                    indexPath = last
-                } else {
-                    indexPath = first
-                }
+                indexPath = min(first, last)
             default:
-                if first.compare(last) == .orderedAscending {
-                    indexPath = first
-                } else {
-                    indexPath = last
-                }
+                indexPath = max(first, last)
             }
         } else {
-            indexPath = indexPaths.first ?? IndexPath(row: 0, section: 0)
+            indexPath = indexPaths.first ?? indexPath
         }
 
         return indexPath
@@ -1004,15 +995,15 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
     /**
      Find a page by FRTocReference.
      */
-    public func findPageByResource(_ reference: FRTocReference) -> Int {
+    public func findPageByResource(_ reference: FRTocReference) -> Int? {
         var count = 0
         for item in self.book.spine.spineReferences {
             if let resource = reference.resource, item.resource == resource {
-                return count
+                return count + 1
             }
             count += 1
         }
-        return count
+        return nil
     }
 
     /**
@@ -1638,7 +1629,6 @@ extension FolioReaderCenter: FolioReaderPageDelegate {
 extension FolioReaderCenter: FolioReaderChapterListDelegate {
     
     func chapterList(_ chapterList: FolioReaderChapterList, didSelectRowAtIndexPath indexPath: IndexPath, withTocReference reference: FRTocReference) {
-        let item = findPageByResource(reference)
         //IID
         if let bookTitle = book.title {
         NotificationCenter.default.post(name: Notification.Name("GoogleAnalyticsEvent"),
@@ -1647,15 +1637,15 @@ extension FolioReaderCenter: FolioReaderChapterListDelegate {
                                                    "action" : "content select",
                                                    "label" : "\(bookTitle)/ \(reference.title ?? "")"])
         }
-        if item < totalPages {
-            let indexPath = IndexPath(row: item, section: 0)
-            changePageWith(indexPath: indexPath, animated: false, completion: { () -> Void in
-                self.updateCurrentPage()
-            })
-            tempReference = reference
-        } else {
-            print("Failed to load book because the requested resource is missing.")
+        guard let item = findPageByResource(reference) else {
+            return
         }
+
+        currentPageNumber = item
+        changePageWith(page: item, animated: false) {
+            self.updateCurrentPage()
+        }
+        tempReference = reference
     }
     
     func chapterList(didDismissedChapterList chapterList: FolioReaderChapterList) {
