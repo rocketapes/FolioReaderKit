@@ -1259,7 +1259,6 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         scrollScrubber?.scrollViewDidScroll(scrollView)
 
         let isCollectionScrollView = (scrollView is UICollectionView)
-        let scrollType: ScrollType = ((isCollectionScrollView == true) ? .chapter : .page)
 
         // Update current reading page
         if (isCollectionScrollView == false), let page = currentPage, let webView = page.webView {
@@ -1292,8 +1291,6 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
                 self.delegate?.pageItemChanged?(webViewPage, center: self)
             }
         }
-
-        self.updatePageScrollDirection(inScrollView: scrollView, forScrollType: scrollType)
     }
 
     private func updatePageScrollDirection(inScrollView scrollView: UIScrollView, forScrollType scrollType: ScrollType) {
@@ -1332,8 +1329,9 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
     
     open func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
         self.isScrolling = false
-        
-        if (scrollView is UICollectionView) {
+
+        let isCollectionScrollView = scrollView is UICollectionView
+        if isCollectionScrollView {
             scrollView.isUserInteractionEnabled = true
         }
         
@@ -1369,7 +1367,8 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
                 self?.scrollScrubber?.scrollViewDidEndDecelerating(scrollView)
             }
         })
-        
+
+        self.updatePageScrollDirection(inScrollView: scrollView, forScrollType: isCollectionScrollView ? .chapter : .page)
     }
 
     open func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
@@ -1637,10 +1636,11 @@ extension FolioReaderCenter: FolioReaderChapterListDelegate {
                                                    "action" : "content select",
                                                    "label" : "\(bookTitle)/ \(reference.title ?? "")"])
         }
-        guard let item = findPageByResource(reference) else {
+        guard let item = findPageByResource(reference), item != currentPageNumber else {
             return
         }
 
+        pageScrollDirection = item < currentPageNumber ? .positive(withConfiguration: self.readerConfig, scrollType: .chapter) : .negative(withConfiguration: self.readerConfig, scrollType: .chapter)
         currentPageNumber = item
         changePageWith(page: item, animated: false) {
             self.updateCurrentPage()
