@@ -737,18 +737,34 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         let indexPaths = collectionView.indexPathsForVisibleItems
         var indexPath = IndexPath(row: 0, section: 0)
 
-        if indexPaths.count > 1 {
-            let first = indexPaths.first!
-            let last = indexPaths.last!
+        guard let first = indexPaths.first else {
+            return indexPath
+        }
 
+        switch indexPaths.count {
+        case 0:
+            break
+        case 1:
+            indexPath = first
+        case 2:
+            guard let second = indexPaths.last, abs(first.row - second.row) > 1 else {
+                fallthrough
+            }
+
+            if first.row + 1 == currentPageNumber {
+                indexPath = first
+            } else if second.row + 1 == currentPageNumber {
+                indexPath = second
+            } else {
+                fallthrough
+            }
+        default:
             switch self.pageScrollDirection {
             case .up, .left:
-                indexPath = min(first, last)
+                indexPath = indexPaths.min()!
             default:
-                indexPath = max(first, last)
+                indexPath = indexPaths.max()!
             }
-        } else {
-            indexPath = indexPaths.first ?? indexPath
         }
 
         return indexPath
@@ -833,11 +849,11 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
             return
         }
 
-        UIView.animate(withDuration: animated ? 0.3 : 0, delay: 0, options: UIViewAnimationOptions(), animations: { () -> Void in
+        UIView.animate(withDuration: animated ? 0.3 : 0, delay: 0, options: UIViewAnimationOptions(), animations: {
             self.collectionView.scrollToItem(at: indexPath, at: .direction(withConfiguration: self.readerConfig), animated: false)
-        }) { (finished: Bool) -> Void in
+        }, completion: { finished -> Void in
             completion?()
-        }
+        })
     }
     
     open func changePageWith(href: String, pageItem: Int, animated: Bool = false, completion: (() -> Void)? = nil) {
@@ -1642,9 +1658,7 @@ extension FolioReaderCenter: FolioReaderChapterListDelegate {
         }
 
         currentPageNumber = item
-        changePageWith(page: item, animated: false) {
-            self.updateCurrentPage()
-        }
+        changePageWith(indexPath: IndexPath(row: item - 1, section: 0), animated: true)
         tempReference = reference
     }
     
