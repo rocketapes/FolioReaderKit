@@ -218,6 +218,7 @@ open class FolioReaderConfig: NSObject {
     open var localizedShareTextQuote = NSLocalizedString("Share text quote", comment: "")
     open var localizedSave = NSLocalizedString("Save", comment: "")
     open var localizedHighlightNote = NSLocalizedString("Note", comment: "")
+    open var localizedSearchPlaceholder = NSLocalizedString("Search in this book", comment: "")
 
     //IID START
     open var fileDelegate: FolioReaderConfigFileDelegate?

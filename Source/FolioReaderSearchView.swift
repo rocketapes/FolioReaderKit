@@ -96,7 +96,7 @@ class FolioReaderSearchView: UIViewController {
         searchBar = UISearchBar();
         searchBar.delegate = self
         searchBar.showsCancelButton = false
-        searchBar.placeholder = "Search in this book"
+        searchBar.placeholder = self.readerConfig.localizedSearchPlaceholder
         navigationItem.titleView = searchBar
         addTableView()
     
