@@ -449,20 +449,7 @@ internal extension UIViewController {
 
     // MARK: - NavigationBar
 
-    func setTransparentNavigation() {
-        let navBar = self.navigationController?.navigationBar
-        navBar?.hideBottomHairline()
-        if #available(iOS 15.0, *) {
-            navBar?.barTintColor = .clear
-            navBar?.standardAppearance.configureWithTransparentBackground()
-            navBar?.scrollEdgeAppearance = navBar?.standardAppearance
-        } else {
-            navBar?.setBackgroundImage(UIImage(), for: UIBarMetrics.default)
-            navBar?.isTranslucent = true
-        }
-    }
-
-    func setTranslucentNavigation(_ translucent: Bool = true, color: UIColor, tintColor: UIColor = UIColor.white, titleColor: UIColor = UIColor.black, andFont font: UIFont = UIFont.systemFont(ofSize: 17)) {
+    func setupNavigation(translucent: Bool = false, color: UIColor, tintColor: UIColor = UIColor.white, titleColor: UIColor = UIColor.black, andFont font: UIFont = UIFont.systemFont(ofSize: 17)) {
         let navBar = self.navigationController?.navigationBar
         navBar?.showBottomHairline()
         if #available(iOS 15.0, *) {

@@ -196,7 +196,7 @@ class FolioReaderQuoteShare: UIViewController {
         let tintColor = self.readerConfig.tintColor
         let navText = self.folioReader.isNight(UIColor.white, UIColor.black)
         let font = UIFont(name: "Avenir-Light", size: 17)!
-        setTranslucentNavigation(false, color: navBackground, tintColor: tintColor, titleColor: navText, andFont: font)
+        setupNavigation(color: navBackground, tintColor: tintColor, titleColor: navText, andFont: font)
     }
 
     func createDefaultImages() {

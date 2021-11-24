@@ -135,7 +135,7 @@ class FolioReaderAddHighlightNote: UIViewController, UIScrollViewDelegate {
         let tintColor = readerConfig.tintColor
         let navText = folioReader.isNight(UIColor.white, UIColor.black)
         let font = UIFont(name: "Avenir-Light", size: 17)!
-        setTranslucentNavigation(false, color: navBackground, tintColor: tintColor, titleColor: navText, andFont: font)
+        setupNavigation(color: navBackground, tintColor: tintColor, titleColor: navText, andFont: font)
         
         let titleAttrs = [NSAttributedStringKey.foregroundColor: readerConfig.tintColor]
         let saveButton = UIBarButtonItem(title: readerConfig.localizedSave, style: .plain, target: self, action: #selector(saveNote(_:)))

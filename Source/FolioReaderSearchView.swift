@@ -126,7 +126,7 @@ class FolioReaderSearchView: UIViewController {
         let tintColor = self.readerConfig.tintColor
         let navText = self.folioReader.isNight(UIColor.white, UIColor.black)
         let font = UIFont(name: "Avenir-Light", size: 17)!
-        setTranslucentNavigation(false, color: navBackground, tintColor: tintColor, titleColor: navText, andFont: font)
+        setupNavigation(color: navBackground, tintColor: tintColor, titleColor: navText, andFont: font)
         if #available(iOS 13, *) {
             searchBar.searchTextField.backgroundColor = self.folioReader.isNight(darkModeSearchBarBackgroundColor, defaultSearchBarBackgroundColor)
             searchBar.searchTextField.textColor = self.folioReader.isNight(darkModeTextColor, defaultTextColor)

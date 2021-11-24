@@ -285,7 +285,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         let tintColor = readerConfig.tintColor
         let navText = readerConfig.tintColor
         let font = UIFont.systemFont(ofSize: 14, weight: .medium)
-        setTranslucentNavigation(color: navBackground, tintColor: tintColor, titleColor: navText, andFont: font)
+        setupNavigation(color: navBackground, tintColor: tintColor, titleColor: navText, andFont: font)
     }
 
     func configureNavBarButtons() {
