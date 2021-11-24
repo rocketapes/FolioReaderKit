@@ -451,16 +451,32 @@ internal extension UIViewController {
 
     func setTransparentNavigation() {
         let navBar = self.navigationController?.navigationBar
-        navBar?.setBackgroundImage(UIImage(), for: UIBarMetrics.default)
         navBar?.hideBottomHairline()
-        navBar?.isTranslucent = true
+        if #available(iOS 15.0, *) {
+            navBar?.barTintColor = .clear
+            navBar?.standardAppearance.configureWithTransparentBackground()
+            navBar?.scrollEdgeAppearance = navBar?.standardAppearance
+        } else {
+            navBar?.setBackgroundImage(UIImage(), for: UIBarMetrics.default)
+            navBar?.isTranslucent = true
+        }
     }
 
     func setTranslucentNavigation(_ translucent: Bool = true, color: UIColor, tintColor: UIColor = UIColor.white, titleColor: UIColor = UIColor.black, andFont font: UIFont = UIFont.systemFont(ofSize: 17)) {
         let navBar = self.navigationController?.navigationBar
-        navBar?.setBackgroundImage(UIImage.imageWithColor(color), for: UIBarMetrics.default)
         navBar?.showBottomHairline()
-        navBar?.isTranslucent = translucent
+        if #available(iOS 15.0, *) {
+            navBar?.barTintColor = color
+            if translucent {
+                navBar?.standardAppearance.configureWithTransparentBackground()
+            } else {
+                navBar?.standardAppearance.configureWithOpaqueBackground()
+            }
+            navBar?.scrollEdgeAppearance = navBar?.standardAppearance
+        } else {
+            navBar?.setBackgroundImage(UIImage.imageWithColor(color), for: UIBarMetrics.default)
+            navBar?.isTranslucent = translucent
+        }
         navBar?.tintColor = tintColor
         navBar?.titleTextAttributes = [NSAttributedStringKey.foregroundColor: titleColor, NSAttributedStringKey.font: font]
     }

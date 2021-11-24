@@ -1509,7 +1509,12 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         }
         navigationController.navigationBar.barTintColor = #colorLiteral(red: 0.137254902, green: 0.3411764706, blue: 0.5882352941, alpha: 1)
         navigationController.navigationBar.titleTextAttributes = [NSAttributedStringKey.foregroundColor: UIColor.white , NSAttributedStringKey.font: UIFont.boldSystemFont(ofSize: 17)]
-        navigationController.navigationBar.isTranslucent = false
+        if #available(iOS 15.0, *) {
+            navigationController.navigationBar.standardAppearance.configureWithOpaqueBackground()
+            navigationController.navigationBar.scrollEdgeAppearance = navigationController.navigationBar.standardAppearance
+        } else {
+            navigationController.navigationBar.isTranslucent = false
+        }
         return navigationController
     }
     
