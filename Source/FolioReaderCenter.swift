@@ -1683,7 +1683,7 @@ extension FolioReaderCenter: FolioReaderChapterListDelegate {
         var bounds = view.frame
         
         if #available(iOS 11.0, *) {
-            bounds.size.height = bounds.size.height - view.safeAreaInsets.bottom
+            bounds = view.safeAreaLayoutGuide.layoutFrame
         }
         
         return bounds
