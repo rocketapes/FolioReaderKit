@@ -165,7 +165,7 @@
 		1A958F211D397BE900D56699 /* Highlight+Helper.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Highlight+Helper.swift"; sourceTree = "<group>"; };
 		1A958F231D397BE900D56699 /* Highlight.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Highlight.swift; sourceTree = "<group>"; };
 		1A958F241D397BE900D56699 /* PageViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PageViewController.swift; sourceTree = "<group>"; };
-		1A958F261D397BE900D56699 /* Bridge.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = Bridge.js; sourceTree = "<group>"; };
+		1A958F261D397BE900D56699 /* Bridge.js */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 4; lastKnownFileType = sourcecode.javascript; path = Bridge.js; sourceTree = "<group>"; tabWidth = 4; };
 		1A958F291D397BE900D56699 /* Andada-Bold.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Andada-Bold.otf"; sourceTree = "<group>"; };
 		1A958F2A1D397BE900D56699 /* Andada-BoldItalic.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Andada-BoldItalic.otf"; sourceTree = "<group>"; };
 		1A958F2B1D397BE900D56699 /* Andada-Italic.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Andada-Italic.otf"; sourceTree = "<group>"; };
