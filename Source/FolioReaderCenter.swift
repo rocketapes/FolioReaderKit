@@ -300,6 +300,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         let space = 70 as CGFloat
 
         let menu = UIBarButtonItem(image: closeIcon, style: .plain, target: self, action:#selector(closeReader(_:)))
+        // Table of contents -> toc
         let toc = UIBarButtonItem(image: tocIcon, style: .plain, target: self, action:#selector(presentChapterList(_:)))
         searchItem = UIBarButtonItem(image: imageSearch, style: .plain, target: self, action: #selector(didSelectSearch(_:)))
         searchItem?.tintColor = readerConfig.tintColor
@@ -319,6 +320,10 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
 
         let font = UIBarButtonItem(image: fontIcon, style: .plain, target: self, action: #selector(presentFontsMenu))
         font.width = space
+        
+        menu.accessibilityLabel = NSLocalizedString("close_reader", comment: "Close reader button")
+        toc.accessibilityLabel = NSLocalizedString("table_of_contents", comment: "Table of contents button")
+        font.accessibilityLabel = NSLocalizedString("custom_fonts", comment: "Custom fonts button")
 
         rightBarIcons.append(contentsOf: [font])
         navigationItem.rightBarButtonItems = rightBarIcons
