@@ -302,6 +302,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         let menu = UIBarButtonItem(image: closeIcon, style: .plain, target: self, action:#selector(closeReader(_:)))
         let toc = UIBarButtonItem(image: tocIcon, style: .plain, target: self, action:#selector(presentChapterList(_:)))
         searchItem = UIBarButtonItem(image: imageSearch, style: .plain, target: self, action: #selector(didSelectSearch(_:)))
+        searchItem?.accessibilityLabel = NSLocalizedString("search_this_book", comment: "Search this book")
         searchItem?.tintColor = readerConfig.tintColor
         
         navigationItem.leftBarButtonItems = self.allowSearchThisBook
@@ -310,11 +311,15 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         var rightBarIcons = [UIBarButtonItem]()
 
         if (self.readerConfig.allowSharing == true) {
-            rightBarIcons.append(UIBarButtonItem(image: shareIcon, style: .plain, target: self, action:#selector(shareChapter(_:))))
+            let shareButton = UIBarButtonItem(image: shareIcon, style: .plain, target: self, action:#selector(shareChapter(_:)))
+            shareButton.accessibilityLabel = NSLocalizedString("share_chapter", comment: "Share chapter")
+            rightBarIcons.append(shareButton)
         }
 
         if self.book.hasAudio || self.readerConfig.enableTTS {
-            rightBarIcons.append(UIBarButtonItem(image: audioIcon, style: .plain, target: self, action:#selector(presentPlayerMenu(_:))))
+            let audioButton = UIBarButtonItem(image: audioIcon, style: .plain, target: self, action:#selector(presentPlayerMenu(_:)))
+            audioButton.accessibilityLabel = NSLocalizedString("text_to_speech", comment: "Text to speech")
+            rightBarIcons.append(audioButton)
         }
 
         let font = UIBarButtonItem(image: fontIcon, style: .plain, target: self, action: #selector(presentFontsMenu))
@@ -322,6 +327,11 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
 
         rightBarIcons.append(contentsOf: [font])
         navigationItem.rightBarButtonItems = rightBarIcons
+        
+        // Accessibilty
+        menu.accessibilityLabel = NSLocalizedString("close_reader", comment: "Close reader button")
+        toc.accessibilityLabel = NSLocalizedString("table_of_content", comment: "Table of content")
+        font.accessibilityLabel = NSLocalizedString("custom_font", comment: "Custom fonts")
         
         if(self.readerConfig.displayTitle){
             navigationItem.title = rwBook?.title ?? book.title
