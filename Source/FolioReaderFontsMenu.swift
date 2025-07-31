@@ -100,10 +100,12 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
         self.view.backgroundColor = UIColor.clear
 
         // Tap gesture
-        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(FolioReaderFontsMenu.tapGesture))
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(FolioReaderFontsMenu.closeFontMenuTapGesture))
         tapGesture.numberOfTapsRequired = 1
         tapGesture.delegate = self
         view.addGestureRecognizer(tapGesture)
+    
+        
 
         // Menu view
         let visibleHeight: CGFloat = self.readerConfig.canChangeScrollDirection ? 222 : 170
@@ -118,6 +120,9 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
         menuView.layer.rasterizationScale = UIScreen.main.scale
         menuView.layer.shouldRasterize = true
         view.addSubview(menuView)
+        
+        // Accessibility -> needs menuView
+        setupCloseButtonAccessibility()
 
         let normalColor = UIColor(white: 0.5, alpha: 0.7)
         let selectedColor = self.readerConfig.tintColor
@@ -275,6 +280,49 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
         }
         menuView.addSubview(layoutDirection)
     }
+    
+    // MARK: Accessibility
+    
+    override var keyCommands: [UIKeyCommand]? {
+        return [
+            UIKeyCommand(input: UIKeyInputEscape, modifierFlags: [], action: #selector(closeFontMenuTapGesture))
+        ]
+    }
+
+    func setupCloseButtonAccessibility() {
+        
+        guard menuView != nil else {
+            print("ERROR: menuView is nil!")
+            return
+        }
+        
+        let closeButton = UIButton(type: .system)
+        closeButton.setTitle("✕", for: .normal)
+        closeButton.titleLabel?.font = UIFont.systemFont(ofSize: 20, weight: .bold)
+        closeButton.addTarget(self, action: #selector(closeFontMenuTapGesture), for: .touchUpInside)
+        closeButton.accessibilityLabel = NSLocalizedString("close_font_menu", comment: "Close font menu")
+
+        // High contrast background with your blue color
+        let blueColor = UIColor(red: 12/255.0, green: 88/255.0, blue: 165/255.0, alpha: 1.0) // #0C58A5
+        closeButton.backgroundColor = UIColor.white
+        closeButton.setTitleColor(blueColor, for: .normal)
+        closeButton.setTitleColor(blueColor.withAlphaComponent(0.7), for: .highlighted)
+
+        // Strong blue border for definition
+        closeButton.layer.cornerRadius = 18
+        closeButton.layer.borderWidth = 2
+        closeButton.layer.borderColor = blueColor.cgColor
+
+        // Prominent shadow for depth
+        closeButton.layer.shadowColor = UIColor.black.cgColor
+        closeButton.layer.shadowOffset = CGSize(width: 0, height: 2)
+        closeButton.layer.shadowOpacity = 0.4
+        closeButton.layer.shadowRadius = 4
+
+        closeButton.frame = CGRect(x: view.frame.width - 55, y: menuView.frame.origin.y + 10, width: 36, height: 36)
+        closeButton.autoresizingMask = .flexibleLeftMargin
+        view.addSubview(closeButton)
+    }
 
     // MARK: - SMSegmentView delegate
 
@@ -317,7 +365,7 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
     
     // MARK: - Gestures
     
-    @objc func tapGesture() {
+    @objc func closeFontMenuTapGesture() {
         dismiss()
         
         if (self.readerConfig.shouldHideNavigationOnTap == false) {
