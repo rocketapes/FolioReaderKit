@@ -297,23 +297,21 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
         }
         
         let closeButton = UIButton(type: .system)
+        closeButton.isAccessibilityElement = true
         closeButton.setTitle("✕", for: .normal)
         closeButton.titleLabel?.font = UIFont.systemFont(ofSize: 20, weight: .bold)
         closeButton.addTarget(self, action: #selector(closeFontMenuTapGesture), for: .touchUpInside)
         closeButton.accessibilityLabel = NSLocalizedString("close_font_menu", comment: "Close font menu")
 
-        // High contrast background with your blue color
         let blueColor = UIColor(red: 12/255.0, green: 88/255.0, blue: 165/255.0, alpha: 1.0) // #0C58A5
         closeButton.backgroundColor = UIColor.white
         closeButton.setTitleColor(blueColor, for: .normal)
         closeButton.setTitleColor(blueColor.withAlphaComponent(0.7), for: .highlighted)
 
-        // Strong blue border for definition
         closeButton.layer.cornerRadius = 18
         closeButton.layer.borderWidth = 2
         closeButton.layer.borderColor = blueColor.cgColor
 
-        // Prominent shadow for depth
         closeButton.layer.shadowColor = UIColor.black.cgColor
         closeButton.layer.shadowOffset = CGSize(width: 0, height: 2)
         closeButton.layer.shadowOpacity = 0.4
