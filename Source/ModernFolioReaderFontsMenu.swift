@@ -113,16 +113,11 @@ class ModernFolioReaderFontsMenu: UIViewController {
         closeButton.layer.cornerRadius = 18
         closeButton.layer.borderWidth = 2
         closeButton.layer.borderColor = blueColor.cgColor
-        closeButton.layer.shadowColor = UIColor.black.cgColor
-        closeButton.layer.shadowOffset = CGSize(width: 0, height: 2)
-        closeButton.layer.shadowOpacity = 0.3
-        closeButton.layer.shadowRadius = 4
         
         // Accessibility
         closeButton.isAccessibilityElement = true
-        closeButton.accessibilityLabel = readerConfig.localizedCancel
+        closeButton.accessibilityLabel = NSLocalizedString("close_font_menu", comment: "close font menu")
         closeButton.accessibilityTraits = UIAccessibilityTraitButton
-        closeButton.accessibilityHint = NSLocalizedString("Double tap to close the font menu", comment: "")
         
         view.addSubview(closeButton)
         
@@ -136,9 +131,10 @@ class ModernFolioReaderFontsMenu: UIViewController {
     
     private func setupDayNightControl() {
         dayNightSegmentedControl = UISegmentedControl(items: [
-            readerConfig.localizedFontMenuDay,
-            readerConfig.localizedFontMenuNight
+            NSLocalizedString("day_button", comment: "Day or bright mode"),
+            NSLocalizedString("night_button", comment: "dark/night mode")
         ])
+        
         dayNightSegmentedControl.translatesAutoresizingMaskIntoConstraints = false
         dayNightSegmentedControl.selectedSegmentIndex = folioReader.nightMode ? 1 : 0
         dayNightSegmentedControl.addTarget(self, action: #selector(dayNightChanged), for: .valueChanged)
@@ -155,8 +151,7 @@ class ModernFolioReaderFontsMenu: UIViewController {
         
         // Accessibility
         dayNightSegmentedControl.isAccessibilityElement = true
-        dayNightSegmentedControl.accessibilityLabel = NSLocalizedString("Reading mode", comment: "")
-        dayNightSegmentedControl.accessibilityHint = NSLocalizedString("Choose between day and night reading modes", comment: "")
+        dayNightSegmentedControl.accessibilityLabel = NSLocalizedString("darkmode_on_off", comment: "This segment control handles the day/night mode")
         
         menuView.addSubview(dayNightSegmentedControl)
         
@@ -192,9 +187,9 @@ class ModernFolioReaderFontsMenu: UIViewController {
             
             // Accessibility
             button.isAccessibilityElement = true
-            button.accessibilityLabel = "\(fontName) font"
+            button.accessibilityLabel =  String(format: NSLocalizedString("which_font", comment: "which font is selected"),fontName)
             button.accessibilityTraits = UIAccessibilityTraitButton
-            button.accessibilityHint = NSLocalizedString("Double tap to select this font family", comment: "")
+            button.accessibilityHint = NSLocalizedString("font_accessibility_hint", comment: "description of the font family button")
             
             fontFamilyButtons.append(button)
             stackView.addArrangedSubview(button)
@@ -217,7 +212,7 @@ class ModernFolioReaderFontsMenu: UIViewController {
         let containerView = UIView()
         containerView.translatesAutoresizingMaskIntoConstraints = false
         
-        // Small font icon (left)
+        // Small font icon (left) touchable?
         let smallFontLabel = UILabel()
         smallFontLabel.translatesAutoresizingMaskIntoConstraints = false
         smallFontLabel.text = "Aa"
@@ -228,7 +223,7 @@ class ModernFolioReaderFontsMenu: UIViewController {
         smallFontLabel.accessibilityLabel = NSLocalizedString("Small font size", comment: "")
         smallFontLabel.accessibilityTraits = UIAccessibilityTraitStaticText
         
-        // Large font icon (right)
+        // Large font icon (right) touchable?
         let largeFontLabel = UILabel()
         largeFontLabel.translatesAutoresizingMaskIntoConstraints = false
         largeFontLabel.text = "Aa"
@@ -241,14 +236,17 @@ class ModernFolioReaderFontsMenu: UIViewController {
         
         // Font size slider
         fontSizeSlider = DiscreteSlider()
+        fontSizeSlider.accessibilityTraits = UIAccessibilityTraitAdjustable
         fontSizeSlider.translatesAutoresizingMaskIntoConstraints = false
         fontSizeSlider.minimumValue = 0
         fontSizeSlider.maximumValue = 4
         fontSizeSlider.value = Float(folioReader.currentFontSize.rawValue)
-//        fontSizeSlider.addTarget(self, action: #selector(fontSizeChanged), for: .valueChanged)
-        fontSizeSlider.onKeyboardStep = { [weak self] newValue in
+        fontSizeSlider.addTarget(self, action: #selector(fontSizeSliderMoved), for: .valueChanged)
+        
+        fontSizeSlider.onDiscreteStep = { [weak self] newValue in
             guard let self = self, let fontSize = FolioReaderFontSize(rawValue: newValue) else { return }
             self.folioReader.currentFontSize = fontSize
+            print("VoiceOver/Keyboard changed font to: \(fontSize)")
         }
         
         // Styling
@@ -341,7 +339,6 @@ class ModernFolioReaderFontsMenu: UIViewController {
     // MARK: - Actions
     
     @objc private func fontSizeSliderMoved() {
-        print("moved")
         // Snap to nearest discrete value immediately
         let discreteValue = round(fontSizeSlider.value)
         fontSizeSlider.setValue(discreteValue, animated: false)
@@ -373,12 +370,6 @@ class ModernFolioReaderFontsMenu: UIViewController {
         guard let font = FolioReaderFont(rawValue: sender.tag) else { return }
         folioReader.currentFont = font
         updateFontFamilySelection()
-    }
-    
-    @objc private func fontSizeChanged() {
-        let value = Int(fontSizeSlider.value)  // Remove .rounded()
-        guard let fontSize = FolioReaderFontSize(rawValue: value) else { return }
-        folioReader.currentFontSize = fontSize
     }
     
     @objc private func layoutDirectionChanged() {
@@ -427,13 +418,13 @@ class ModernFolioReaderFontsMenu: UIViewController {
     
     // MARK: - Accessibility & Keyboard Support
     
-    override open var canBecomeFirstResponder: Bool {
-        return true
-    }
+//    override open var canBecomeFirstResponder: Bool {
+//        return true
+//    }
     
-    override open var preferredFocusEnvironments: [UIFocusEnvironment] {
-        return [dayNightSegmentedControl]
-    }
+//    override open var preferredFocusEnvironments: [UIFocusEnvironment] {
+//        return [dayNightSegmentedControl]
+//    }
     
     override open var keyCommands: [UIKeyCommand]? {
         return [
