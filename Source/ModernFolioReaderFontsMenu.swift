@@ -256,8 +256,7 @@ class ModernFolioReaderFontsMenu: UIViewController {
         
         // Accessibility
         fontSizeSlider.isAccessibilityElement = true
-        fontSizeSlider.accessibilityLabel = NSLocalizedString("Font size", comment: "")
-        fontSizeSlider.accessibilityHint = NSLocalizedString("Swipe up or down to adjust text size", comment: "")
+        fontSizeSlider.accessibilityLabel = NSLocalizedString("font_size_adjustable", comment: "Adjust the font size")
         
         containerView.addSubview(smallFontLabel)
         containerView.addSubview(fontSizeSlider)
@@ -286,8 +285,8 @@ class ModernFolioReaderFontsMenu: UIViewController {
     
     private func setupLayoutDirectionControl() {
         layoutDirectionSegmentedControl = UISegmentedControl(items: [
-            readerConfig.localizedLayoutVertical,
-            readerConfig.localizedLayoutHorizontal
+            NSLocalizedString("vertical_button", comment: "changes the layout scroll direction of the pages to vertical"),
+            NSLocalizedString("horizontal_button", comment: "changes the layout scroll direction of the pages to horizontal")
         ])
         layoutDirectionSegmentedControl.translatesAutoresizingMaskIntoConstraints = false
         
@@ -311,11 +310,6 @@ class ModernFolioReaderFontsMenu: UIViewController {
         layoutDirectionSegmentedControl.setTitleTextAttributes([
             NSAttributedStringKey.foregroundColor: UIColor(red: 12/255.0, green: 88/255.0, blue: 165/255.0, alpha: 1.0)  // #0C58A5
         ], for: .selected)
-        
-        // Accessibility
-        layoutDirectionSegmentedControl.isAccessibilityElement = true
-        layoutDirectionSegmentedControl.accessibilityLabel = NSLocalizedString("Reading layout", comment: "")
-        layoutDirectionSegmentedControl.accessibilityHint = NSLocalizedString("Choose between vertical and horizontal reading layouts", comment: "")
         
         menuView.addSubview(layoutDirectionSegmentedControl)
         
