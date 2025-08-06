@@ -2,7 +2,6 @@ import UIKit
 
 class ModernFolioReaderFontsMenu: UIViewController {
     
-    // MARK: - Properties
     
     private var menuView: UIView!
     private var dayNightSegmentedControl: UISegmentedControl!
@@ -14,8 +13,6 @@ class ModernFolioReaderFontsMenu: UIViewController {
     private let readerConfig: FolioReaderConfig
     private let folioReader: FolioReader
     
-    // MARK: - Initialization
-    
     init(folioReader: FolioReader, readerConfig: FolioReaderConfig) {
         self.readerConfig = readerConfig
         self.folioReader = folioReader
@@ -25,8 +22,6 @@ class ModernFolioReaderFontsMenu: UIViewController {
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
-    // MARK: - Lifecycle
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -63,8 +58,6 @@ class ModernFolioReaderFontsMenu: UIViewController {
         super.viewWillDisappear(animated)
         resignFirstResponder()
     }
-    
-    // MARK: - Setup Methods
     
     private func setupView() {
         view.backgroundColor = UIColor.clear
@@ -330,8 +323,6 @@ class ModernFolioReaderFontsMenu: UIViewController {
         menuView.accessibilityLabel = NSLocalizedString("Font settings menu", comment: "")
     }
     
-    // MARK: - Actions
-    
     @objc private func fontSizeSliderMoved() {
         // Snap to nearest discrete value immediately
         let discreteValue = round(fontSizeSlider.value)
@@ -410,24 +401,12 @@ class ModernFolioReaderFontsMenu: UIViewController {
         }
     }
     
-    // MARK: - Accessibility & Keyboard Support
-    
-//    override open var canBecomeFirstResponder: Bool {
-//        return true
-//    }
-    
-//    override open var preferredFocusEnvironments: [UIFocusEnvironment] {
-//        return [dayNightSegmentedControl]
-//    }
-    
     override open var keyCommands: [UIKeyCommand]? {
         return [
             UIKeyCommand(input: UIKeyInputEscape, modifierFlags: [], action: #selector(closeButtonTapped))
         ]
     }
 }
-
-// MARK: - UIGestureRecognizerDelegate
 
 extension ModernFolioReaderFontsMenu: UIGestureRecognizerDelegate {
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
