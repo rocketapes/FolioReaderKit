@@ -4,10 +4,12 @@ class ModernFolioReaderFontsMenu: UIViewController {
     
     
     private var menuView: UIView!
-    private var dayNightSegmentedControl: UISegmentedControl!
+    private var dayButton: UIButton!
+    private var nightButton: UIButton!
     private var fontFamilyButtons: [UIButton] = []
     private var fontSizeSlider: DiscreteSlider!
-    private var layoutDirectionSegmentedControl: UISegmentedControl!
+    private var verticalButton: UIButton!
+    private var horizontalButton: UIButton!
     private var closeButton: UIButton!
     
     private let readerConfig: FolioReaderConfig
@@ -28,11 +30,11 @@ class ModernFolioReaderFontsMenu: UIViewController {
         setupView()
         setupMenuView()
         setupCloseButton()
-        setupDayNightControl()
+        setupDayNightButtons()
         setupFontFamilyButtons()
         setupFontSizeSlider()
         if readerConfig.canChangeScrollDirection {
-            setupLayoutDirectionControl()
+            setupLayoutDirectionButtons()
         }
         setupAccessibility()
         updateUI()
@@ -122,38 +124,46 @@ class ModernFolioReaderFontsMenu: UIViewController {
         ])
     }
     
-    private func setupDayNightControl() {
-        dayNightSegmentedControl = UISegmentedControl(items: [
-            NSLocalizedString("day_button", comment: "Day or bright mode"),
-            NSLocalizedString("night_button", comment: "dark/night mode")
-        ])
+    private func setupDayNightButtons() {
+        let stackView = UIStackView()
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.axis = .horizontal
+        stackView.distribution = .fillEqually
+        stackView.spacing = 10
         
-        dayNightSegmentedControl.translatesAutoresizingMaskIntoConstraints = false
-        dayNightSegmentedControl.selectedSegmentIndex = folioReader.nightMode ? 1 : 0
-        dayNightSegmentedControl.addTarget(self, action: #selector(dayNightChanged), for: .valueChanged)
+        // Day Button
+        dayButton = createImageTextButton(
+            title: NSLocalizedString("day_button", comment: "Day or bright mode"),
+            imageName: "icon-sun",
+            target: self,
+            action: #selector(dayButtonTapped)
+        )
+        dayButton.accessibilityLabel = NSLocalizedString("day_button", comment: "Day or bright mode")
+        dayButton.accessibilityTraits = UIAccessibilityTraitButton
         
-        // Styling
-        dayNightSegmentedControl.backgroundColor = UIColor.clear
-        dayNightSegmentedControl.tintColor = readerConfig.tintColor
-        dayNightSegmentedControl.setTitleTextAttributes([
-            NSAttributedStringKey.foregroundColor: folioReader.isNight(UIColor.white, UIColor.darkGray)
-        ], for: .normal)
-        dayNightSegmentedControl.setTitleTextAttributes([
-            NSAttributedStringKey.foregroundColor: UIColor(red: 12/255.0, green: 88/255.0, blue: 165/255.0, alpha: 1.0)  // #0C58A5
-        ], for: .selected)
+        // Night Button
+        nightButton = createImageTextButton(
+            title: NSLocalizedString("night_button", comment: "dark/night mode"),
+            imageName: "icon-moon",
+            target: self,
+            action: #selector(nightButtonTapped)
+        )
+        nightButton.accessibilityLabel = NSLocalizedString("night_button", comment: "dark/night mode")
+        nightButton.accessibilityTraits = UIAccessibilityTraitButton
         
-        // Accessibility
-        dayNightSegmentedControl.isAccessibilityElement = true
-        dayNightSegmentedControl.accessibilityLabel = NSLocalizedString("darkmode_on_off", comment: "This segment control handles the day/night mode")
-        
-        menuView.addSubview(dayNightSegmentedControl)
+        stackView.addArrangedSubview(dayButton)
+        stackView.addArrangedSubview(nightButton)
+        menuView.addSubview(stackView)
         
         NSLayoutConstraint.activate([
-            dayNightSegmentedControl.topAnchor.constraint(equalTo: menuView.topAnchor, constant: 20),
-            dayNightSegmentedControl.leadingAnchor.constraint(equalTo: menuView.leadingAnchor, constant: 20),
-            dayNightSegmentedControl.trailingAnchor.constraint(equalTo: closeButton.leadingAnchor, constant: -20),
-            dayNightSegmentedControl.heightAnchor.constraint(equalToConstant: 32)
+            stackView.topAnchor.constraint(equalTo: menuView.topAnchor, constant: 20),
+            stackView.leadingAnchor.constraint(equalTo: menuView.leadingAnchor, constant: 20),
+            stackView.trailingAnchor.constraint(equalTo: closeButton.leadingAnchor, constant: -20),
+            stackView.heightAnchor.constraint(equalToConstant: 32)
         ])
+        
+        // Set initial selection
+        updateDayNightSelection()
     }
     
     private func setupFontFamilyButtons() {
@@ -194,7 +204,7 @@ class ModernFolioReaderFontsMenu: UIViewController {
         menuView.addSubview(stackView)
         
         NSLayoutConstraint.activate([
-            stackView.topAnchor.constraint(equalTo: dayNightSegmentedControl.bottomAnchor, constant: 30),
+            stackView.topAnchor.constraint(equalTo: dayButton.superview!.bottomAnchor, constant: 30),
             stackView.leadingAnchor.constraint(equalTo: menuView.leadingAnchor, constant: 20),
             stackView.trailingAnchor.constraint(equalTo: menuView.trailingAnchor, constant: -20),
             stackView.heightAnchor.constraint(equalToConstant: 44)
@@ -212,9 +222,6 @@ class ModernFolioReaderFontsMenu: UIViewController {
         smallFontLabel.font = UIFont.systemFont(ofSize: 14)
         smallFontLabel.textColor = folioReader.isNight(UIColor.lightGray, UIColor.gray)
         smallFontLabel.textAlignment = .center
-        smallFontLabel.isAccessibilityElement = true
-        smallFontLabel.accessibilityLabel = NSLocalizedString("Small font size", comment: "")
-        smallFontLabel.accessibilityTraits = UIAccessibilityTraitStaticText
         
         // Large font icon (right) touchable?
         let largeFontLabel = UILabel()
@@ -223,9 +230,6 @@ class ModernFolioReaderFontsMenu: UIViewController {
         largeFontLabel.font = UIFont.systemFont(ofSize: 20, weight: .medium)
         largeFontLabel.textColor = folioReader.isNight(UIColor.lightGray, UIColor.gray)
         largeFontLabel.textAlignment = .center
-        largeFontLabel.isAccessibilityElement = true
-        largeFontLabel.accessibilityLabel = NSLocalizedString("Large font size", comment: "")
-        largeFontLabel.accessibilityTraits = UIAccessibilityTraitStaticText
         
         // Font size slider
         fontSizeSlider = DiscreteSlider()
@@ -276,51 +280,99 @@ class ModernFolioReaderFontsMenu: UIViewController {
         ])
     }
     
-    private func setupLayoutDirectionControl() {
-        layoutDirectionSegmentedControl = UISegmentedControl(items: [
-            NSLocalizedString("vertical_button", comment: "changes the layout scroll direction of the pages to vertical"),
-            NSLocalizedString("horizontal_button", comment: "changes the layout scroll direction of the pages to horizontal")
-        ])
-        layoutDirectionSegmentedControl.translatesAutoresizingMaskIntoConstraints = false
+    private func setupLayoutDirectionButtons() {
+        let stackView = UIStackView()
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.axis = .horizontal
+        stackView.distribution = .fillEqually
+        stackView.spacing = 10
         
-        // Set current selection
-        let currentDirection = FolioReaderScrollDirection(rawValue: folioReader.currentScrollDirection) ?? .defaultVertical
-        switch currentDirection {
-        case .vertical, .defaultVertical:
-            layoutDirectionSegmentedControl.selectedSegmentIndex = 0
-        case .horizontal, .horizontalWithVerticalContent:
-            layoutDirectionSegmentedControl.selectedSegmentIndex = 1
-        }
+        // Vertical Button
+        verticalButton = createImageTextButton(
+            title: NSLocalizedString("vertical_button", comment: "changes the layout scroll direction of the pages to vertical"),
+            imageName: "icon-menu-vertical",
+            target: self,
+            action: #selector(verticalButtonTapped)
+        )
         
-        layoutDirectionSegmentedControl.addTarget(self, action: #selector(layoutDirectionChanged), for: .valueChanged)
+        // Horizontal Button
+        horizontalButton = createImageTextButton(
+            title: NSLocalizedString("horizontal_button", comment: "changes the layout scroll direction of the pages to horizontal"),
+            imageName: "icon-menu-horizontal",
+            target: self,
+            action: #selector(horizontalButtonTapped)
+        )
         
-        // Styling
-        layoutDirectionSegmentedControl.backgroundColor = UIColor.clear
-        layoutDirectionSegmentedControl.tintColor = readerConfig.tintColor
-        layoutDirectionSegmentedControl.setTitleTextAttributes([
-            NSAttributedStringKey.foregroundColor: folioReader.isNight(UIColor.white, UIColor.darkGray)
-        ], for: .normal)
-        layoutDirectionSegmentedControl.setTitleTextAttributes([
-            NSAttributedStringKey.foregroundColor: UIColor(red: 12/255.0, green: 88/255.0, blue: 165/255.0, alpha: 1.0)  // #0C58A5
-        ], for: .selected)
-        
-        menuView.addSubview(layoutDirectionSegmentedControl)
+        stackView.addArrangedSubview(verticalButton)
+        stackView.addArrangedSubview(horizontalButton)
+        menuView.addSubview(stackView)
         
         NSLayoutConstraint.activate([
-            layoutDirectionSegmentedControl.topAnchor.constraint(equalTo: fontSizeSlider.superview!.bottomAnchor, constant: 30),
-            layoutDirectionSegmentedControl.leadingAnchor.constraint(equalTo: menuView.leadingAnchor, constant: 20),
-            layoutDirectionSegmentedControl.trailingAnchor.constraint(equalTo: menuView.trailingAnchor, constant: -20),
-            layoutDirectionSegmentedControl.heightAnchor.constraint(equalToConstant: 32)
+            stackView.topAnchor.constraint(equalTo: fontSizeSlider.superview!.bottomAnchor, constant: 30),
+            stackView.leadingAnchor.constraint(equalTo: menuView.leadingAnchor, constant: 20),
+            stackView.trailingAnchor.constraint(equalTo: menuView.trailingAnchor, constant: -20),
+            stackView.heightAnchor.constraint(equalToConstant: 32)
         ])
+        
+        // Set initial selection
+        updateLayoutDirectionSelection()
+    }
+    
+    private func createImageTextButton(title: String, imageName: String, target: Any?, action: Selector) -> UIButton {
+        let button = UIButton(type: .system)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Set title and image
+        button.setTitle(title, for: .normal)
+        button.setImage(UIImage(readerImageNamed: imageName), for: .normal)
+        
+        // Configure layout: image on left, text on right, centered
+        button.imageView?.contentMode = .scaleAspectFit
+        button.contentHorizontalAlignment = .center
+        button.imageEdgeInsets = UIEdgeInsets(top: 0, left: -8, bottom: 0, right: 8)
+        button.titleEdgeInsets = UIEdgeInsets(top: 0, left: 8, bottom: 0, right: -8)
+        
+        // Add target
+        button.addTarget(target, action: action, for: .touchUpInside)
+        
+        // Basic styling
+        button.backgroundColor = UIColor.clear
+        button.layer.cornerRadius = 8
+        button.layer.borderWidth = 1
+        
+        return button
     }
     
     private func setupAccessibility() {
-        // Modal behavior - focus stays within menu
+
         view.accessibilityViewIsModal = true
         
         // Menu container
         menuView.isAccessibilityElement = false
         menuView.accessibilityLabel = NSLocalizedString("Font settings menu", comment: "")
+        
+        // Day Button accessibility
+        dayButton.isAccessibilityElement = true
+        dayButton.accessibilityLabel = NSLocalizedString("day_button", comment: "Day or bright mode")
+        dayButton.accessibilityTraits = UIAccessibilityTraitButton
+        dayButton.accessibilityHint = NSLocalizedString("brightmode_on_off", comment: "This button handles the day/night mode")
+
+        // Night Button accessibility
+        nightButton.isAccessibilityElement = true
+        nightButton.accessibilityLabel = NSLocalizedString("night_button", comment: "dark/night mode")
+        nightButton.accessibilityTraits = UIAccessibilityTraitButton
+        nightButton.accessibilityHint = NSLocalizedString("darkmode_on_off", comment: "This button handles the day/night mode")
+        
+        // Vertical button accessibility
+        verticalButton.accessibilityLabel = NSLocalizedString("vertical_button", comment: "changes the layout scroll direction of the pages to vertical")
+        verticalButton.accessibilityTraits = UIAccessibilityTraitButton
+        verticalButton.accessibilityHint = NSLocalizedString("vertical_mode_on_off_hint", comment: "This button handles the day/night mode")
+        
+        // Horizontal button accessibility
+        horizontalButton.accessibilityLabel = NSLocalizedString("horizontal_button", comment: "changes the layout scroll direction of the pages to horizontal")
+        horizontalButton.accessibilityTraits = UIAccessibilityTraitButton
+        horizontalButton.accessibilityHint = NSLocalizedString("horizontal_mode_on_off_hint", comment: "This button handles the day/night mode")
+        
     }
     
     @objc private func fontSizeSliderMoved() {
@@ -342,13 +394,30 @@ class ModernFolioReaderFontsMenu: UIViewController {
         dismiss()
     }
     
-    @objc private func dayNightChanged() {
-        let isNightMode = dayNightSegmentedControl.selectedSegmentIndex == 1
-        folioReader.nightMode = isNightMode
-        
+    @objc private func dayButtonTapped() {
+        folioReader.nightMode = false
+        updateDayNightSelection()
         UIView.animate(withDuration: 0.3) {
             self.updateUI()
         }
+    }
+    
+    @objc private func nightButtonTapped() {
+        folioReader.nightMode = true
+        updateDayNightSelection()
+        UIView.animate(withDuration: 0.3) {
+            self.updateUI()
+        }
+    }
+    
+    @objc private func verticalButtonTapped() {
+        folioReader.currentScrollDirection = 0 // vertical
+        updateLayoutDirectionSelection()
+    }
+    
+    @objc private func horizontalButtonTapped() {
+        folioReader.currentScrollDirection = 1 // horizontal
+        updateLayoutDirectionSelection()
     }
     
     @objc private func fontFamilyChanged(_ sender: UIButton) {
@@ -357,23 +426,18 @@ class ModernFolioReaderFontsMenu: UIViewController {
         updateFontFamilySelection()
     }
     
-    @objc private func layoutDirectionChanged() {
-        let newDirection = layoutDirectionSegmentedControl.selectedSegmentIndex
-        folioReader.currentScrollDirection = newDirection
-    }
-    
     // MARK: - Helper Methods
     
     private func updateUI() {
         // Update menu background
         menuView.backgroundColor = folioReader.isNight(readerConfig.nightModeMenuBackground, UIColor.white)
         
-        // Update segmented controls colors
-        let normalColor = folioReader.isNight(UIColor.white, UIColor.darkGray)
+        // Update day/night buttons
+        updateDayNightSelection()
         
-        dayNightSegmentedControl.setTitleTextAttributes([NSAttributedStringKey.foregroundColor: normalColor], for: .normal)
-        if let layoutControl = layoutDirectionSegmentedControl {
-            layoutControl.setTitleTextAttributes([NSAttributedStringKey.foregroundColor: normalColor], for: .normal)
+        // Update layout direction buttons if they exist
+        if verticalButton != nil && horizontalButton != nil {
+            updateLayoutDirectionSelection()
         }
         
         // Update font family buttons
@@ -381,6 +445,52 @@ class ModernFolioReaderFontsMenu: UIViewController {
             button.setTitleColor(folioReader.isNight(UIColor.lightGray, UIColor.darkGray), for: .normal)
         }
         updateFontFamilySelection()
+    }
+    
+    private func updateDayNightSelection() {
+        let normalColor = folioReader.isNight(UIColor.white, UIColor.darkGray)
+        let selectedColor = UIColor.white
+        let selectedBackgroundColor = UIColor(red: 12/255.0, green: 88/255.0, blue: 165/255.0, alpha: 1.0)
+        let inactiveBorderColor = UIColor(red: 12/255.0, green: 88/255.0, blue: 165/255.0, alpha: 1.0)
+        
+        // Day button
+        dayButton.setTitleColor(folioReader.nightMode ? normalColor : selectedColor, for: .normal)
+        dayButton.tintColor = folioReader.nightMode ? normalColor : selectedColor
+        dayButton.layer.borderWidth = folioReader.nightMode ? 1 : 0
+        dayButton.layer.borderColor = folioReader.nightMode ? inactiveBorderColor.cgColor : UIColor.clear.cgColor
+        dayButton.backgroundColor = folioReader.nightMode ? UIColor.clear : selectedBackgroundColor
+        
+        // Night button
+        nightButton.setTitleColor(folioReader.nightMode ? selectedColor : normalColor, for: .normal)
+        nightButton.tintColor = folioReader.nightMode ? selectedColor : normalColor
+        nightButton.layer.borderWidth = folioReader.nightMode ? 0 : 1
+        nightButton.layer.borderColor = folioReader.nightMode ? UIColor.clear.cgColor : inactiveBorderColor.cgColor
+        nightButton.backgroundColor = folioReader.nightMode ? selectedBackgroundColor : UIColor.clear
+    }
+    
+    private func updateLayoutDirectionSelection() {
+        guard let verticalButton = verticalButton, let horizontalButton = horizontalButton else { return }
+        
+        let normalColor = folioReader.isNight(UIColor.white, UIColor.darkGray)
+        let selectedColor = UIColor.white
+        let selectedBackgroundColor = UIColor(red: 12/255.0, green: 88/255.0, blue: 165/255.0, alpha: 1.0)
+        let inactiveBorderColor = UIColor(red: 12/255.0, green: 88/255.0, blue: 165/255.0, alpha: 1.0)
+        
+        let isVertical = folioReader.currentScrollDirection == 0
+        
+        // Vertical button
+        verticalButton.setTitleColor(isVertical ? selectedColor : normalColor, for: .normal)
+        verticalButton.tintColor = isVertical ? selectedColor : normalColor
+        verticalButton.layer.borderWidth = isVertical ? 0 : 1
+        verticalButton.layer.borderColor = isVertical ? UIColor.clear.cgColor : inactiveBorderColor.cgColor
+        verticalButton.backgroundColor = isVertical ? selectedBackgroundColor : UIColor.clear
+        
+        // Horizontal button
+        horizontalButton.setTitleColor(isVertical ? normalColor : selectedColor, for: .normal)
+        horizontalButton.tintColor = isVertical ? normalColor : selectedColor
+        horizontalButton.layer.borderWidth = isVertical ? 1 : 0
+        horizontalButton.layer.borderColor = isVertical ? inactiveBorderColor.cgColor : UIColor.clear.cgColor
+        horizontalButton.backgroundColor = isVertical ? UIColor.clear : selectedBackgroundColor
     }
     
     private func updateFontFamilySelection() {
@@ -414,5 +524,4 @@ extension ModernFolioReaderFontsMenu: UIGestureRecognizerDelegate {
         return touch.view == view
     }
 }
-
 
