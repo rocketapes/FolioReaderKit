@@ -109,7 +109,8 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
 
         // Menu view
         let visibleHeight: CGFloat = self.readerConfig.canChangeScrollDirection ? 222 : 170
-        menuView = UIView(frame: CGRect(x: 0, y: view.frame.height-visibleHeight, width: view.frame.width, height: view.frame.height))
+        let bottomInset = view.safeAreaInsets.bottom
+        menuView = UIView(frame: CGRect(x: 0, y: view.frame.height-visibleHeight-bottomInset, width: view.frame.width, height: view.frame.height))
         menuView.backgroundColor = self.folioReader.isNight(self.readerConfig.nightModeMenuBackground, UIColor.white)
         menuView.autoresizingMask = .flexibleWidth
         menuView.layer.shadowColor = UIColor.black.cgColor
@@ -381,6 +382,6 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
     // MARK: - Status Bar
     
     override var prefersStatusBarHidden : Bool {
-        return (self.readerConfig.shouldHideNavigationOnTap == true)
+        return false
     }
 }

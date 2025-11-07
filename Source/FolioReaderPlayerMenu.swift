@@ -225,7 +225,7 @@ class FolioReaderPlayerMenu: UIViewController, SMSegmentViewDelegate, UIGestureR
     // MARK: - Status Bar
 
     override var prefersStatusBarHidden : Bool {
-        return (self.readerConfig.shouldHideNavigationOnTap == true)
+        return false
     }
 
     // MARK: - SMSegmentView delegate
