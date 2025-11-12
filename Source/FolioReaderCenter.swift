@@ -162,8 +162,12 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
     override open func viewDidLoad() {
         super.viewDidLoad()
 
+        // Prevent content from shifting when navigation bar appears/disappears
+        edgesForExtendedLayout = .all
+        extendedLayoutIncludesOpaqueBars = true
+
         screenBounds = self.getScreenBounds()
-        
+
         setPageSize(UIApplication.shared.statusBarOrientation)
 
         // Layout
@@ -171,12 +175,12 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         collectionViewLayout.minimumLineSpacing = 0
         collectionViewLayout.minimumInteritemSpacing = 0
         collectionViewLayout.scrollDirection = .direction(withConfiguration: self.readerConfig)
-        
+
         let background = folioReader.isNight(self.readerConfig.nightModeBackground, UIColor.white)
         view.backgroundColor = background
 
         // CollectionView
-        collectionView = UICollectionView(frame: screenBounds, collectionViewLayout: collectionViewLayout)
+        collectionView = UICollectionView(frame: view.bounds, collectionViewLayout: collectionViewLayout)
         collectionView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         collectionView.delegate = self
         collectionView.dataSource = self
@@ -207,9 +211,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         // Register cell classes
         collectionView?.register(FolioReaderPage.self, forCellWithReuseIdentifier: kReuseCellIdentifier)
 
-        // Configure navigation bar and layout
-        collectionView.contentInsetAdjustmentBehavior = .never
-        extendedLayoutIncludesOpaqueBars = true
+        // Configure navigation bar
         configureNavBar()
 
         // Page indicator view
