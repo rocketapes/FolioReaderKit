@@ -329,15 +329,16 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
         guard (self.folioReader.readerCenter?.currentPage) != nil else { return }
 
         if segmentView.tag == 1 {
-
+            // Set night mode - the setter in FolioReaderKit handles all UI updates including menu background
             self.folioReader.nightMode = Bool(index == 1)
 
+            // Update menu background to match (done outside the animation to be synchronous with the setter)
             UIView.animate(withDuration: 0.6, animations: {
-                self.menuView.backgroundColor = (self.folioReader.nightMode ? self.readerConfig.nightModeBackground : UIColor.white)
+                self.menuView.backgroundColor = (self.folioReader.nightMode ? self.readerConfig.nightModeMenuBackground : UIColor.white)
             })
 
         } else if segmentView.tag == 2 {
-
+            // Set current font - the setter in FolioReaderKit handles all page updates
             self.folioReader.currentFont = FolioReaderFont(rawValue: index)!
 
         }  else if segmentView.tag == 3 {

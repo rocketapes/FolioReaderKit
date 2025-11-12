@@ -197,7 +197,11 @@ extension FolioReader {
 
             if let readerCenter = self.readerCenter {
                 UIView.animate(withDuration: 0.6, animations: {
-                    readerCenter.currentPage?.webView?.js("nightMode(\(self.nightMode))") { _ in }
+                    // Update all visible pages, not just current page
+                    for case let cell as FolioReaderPage in readerCenter.collectionView.visibleCells {
+                        cell.webView?.js("nightMode(\(self.nightMode))") { _ in }
+                    }
+
                     readerCenter.pageIndicatorView?.reloadColors()
                     readerCenter.configureNavBar()
                     readerCenter.scrollScrubber?.reloadColors()
@@ -225,7 +229,12 @@ extension FolioReader {
                 self.delegate?.folioReaderDidChangeFont?(self, font: font.name)
             }
             self.defaults.set(font.rawValue, forKey: kCurrentFontFamily)
-            self.readerCenter?.currentPage?.webView?.js("setFontName('\(font.cssIdentifier)')")  { _ in }
+
+            // Update all visible pages, not just current page
+            guard let readerCenter = self.readerCenter else { return }
+            for case let cell as FolioReaderPage in readerCenter.collectionView.visibleCells {
+                cell.webView?.js("setFontName('\(font.cssIdentifier)')")  { _ in }
+            }
         }
     }
 
@@ -246,10 +255,11 @@ extension FolioReader {
             }
             self.defaults.set(value.rawValue, forKey: kCurrentFontSize)
 
-            guard let currentPage = self.readerCenter?.currentPage else {
-                return
+            // Update all visible pages, not just current page
+            guard let readerCenter = self.readerCenter else { return }
+            for case let cell as FolioReaderPage in readerCenter.collectionView.visibleCells {
+                cell.webView?.js("setFontSize('\(value.cssIdentifier)')")  { _ in }
             }
-            currentPage.webView?.js("setFontSize('\(currentFontSize.cssIdentifier)')")  { _ in }
         }
     }
 
