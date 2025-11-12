@@ -453,19 +453,23 @@ internal extension UIViewController {
         let navBar = self.navigationController?.navigationBar
         navBar?.showBottomHairline()
         if #available(iOS 15.0, *) {
-            navBar?.barTintColor = color
+            let appearance = UINavigationBarAppearance()
             if translucent {
-                navBar?.standardAppearance.configureWithTransparentBackground()
+                appearance.configureWithTransparentBackground()
             } else {
-                navBar?.standardAppearance.configureWithOpaqueBackground()
+                appearance.configureWithOpaqueBackground()
             }
-            navBar?.scrollEdgeAppearance = navBar?.standardAppearance
+            appearance.backgroundColor = color
+            appearance.titleTextAttributes = [NSAttributedString.Key.foregroundColor: titleColor, NSAttributedString.Key.font: font]
+            navBar?.standardAppearance = appearance
+            navBar?.scrollEdgeAppearance = appearance
+            navBar?.compactAppearance = appearance
         } else {
             navBar?.setBackgroundImage(UIImage.imageWithColor(color), for: UIBarMetrics.default)
             navBar?.isTranslucent = translucent
+            navBar?.titleTextAttributes = [NSAttributedStringKey.foregroundColor: titleColor, NSAttributedStringKey.font: font]
         }
         navBar?.tintColor = tintColor
-        navBar?.titleTextAttributes = [NSAttributedStringKey.foregroundColor: titleColor, NSAttributedStringKey.font: font]
     }
 }
 
