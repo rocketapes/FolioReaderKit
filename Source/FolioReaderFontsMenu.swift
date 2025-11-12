@@ -123,7 +123,7 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
         view.addSubview(menuView)
         
         // Accessibility -> needs menuView
-        setupCloseButtonAccessibility()
+//        setupCloseButtonAccessibility()
 
         let normalColor = UIColor(white: 0.5, alpha: 0.7)
         let selectedColor = self.readerConfig.tintColor
