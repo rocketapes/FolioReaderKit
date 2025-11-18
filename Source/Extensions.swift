@@ -518,20 +518,6 @@ extension UINavigationController {
     }
 }
 
-/**
- This fixes iOS 9 crash
- http://stackoverflow.com/a/32010520/517707
- */
-extension UIAlertController {
-    open override var supportedInterfaceOrientations : UIInterfaceOrientationMask {
-        return .portrait
-    }
-    
-    open override var shouldAutorotate : Bool {
-        return false
-    }
-}
-
 extension Array {
     
     /**
