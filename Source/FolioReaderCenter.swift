@@ -628,8 +628,6 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         pagesForCurrentPage(currentPage)
         currentPage.refreshPageMode()
 
-        scrollScrubber?.setSliderVal()
-
         fixPageOffset(animated: true)
     }
 
@@ -707,8 +705,6 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
             completion?()
             return
         }
-
-        scrollScrubber?.setSliderVal()
 
 //        if let readingTime = currentPage.webView?.js("getReadingTime()") {
 //            pageIndicatorView?.totalMinutes = Int(readingTime)!
@@ -1266,10 +1262,6 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         recentlyScrolled = true
         pointNow = scrollView.contentOffset
 
-        if (scrollView is UICollectionView) {
-            scrollView.isUserInteractionEnabled = false
-        }
-        
         if let currentPage = currentPage {
             currentPage.webView?.createMenu(options: true)
             currentPage.webView?.setMenuVisible(false)
@@ -1360,11 +1352,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
     
     open func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
         self.isScrolling = false
-        
-        if (scrollView is UICollectionView) {
-            scrollView.isUserInteractionEnabled = true
-        }
-        
+
         // If web page is scroll from page n to page n-1, and it did finish load before
         // scrollViewDidEndDecelerating, keep track it
         let direction: ScrollDirection = self.folioReader.needsRTLChange ? .positive(withConfiguration: self.readerConfig) : .negative(withConfiguration: self.readerConfig)

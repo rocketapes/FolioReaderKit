@@ -50,7 +50,7 @@ class ScrollScrubber: NSObject, UIScrollViewDelegate {
     weak var delegate: FolioReaderCenter?
     var showSpeed = 0.6
     var hideSpeed = 0.6
-    var hideDelay = 1.0
+    var hideDelay = 3.0
 
     var visible = false
     var usingSlider = false
@@ -121,9 +121,17 @@ class ScrollScrubber: NSObject, UIScrollViewDelegate {
     }
 
     @objc func sliderChange(_ slider:UISlider) {
-        let movePosition = (height() * CGFloat(slider.value))
-        let offset = readerConfig.isDirection(CGPoint(x: 0, y: movePosition), CGPoint(x: movePosition, y: 0), CGPoint(x: 0, y: movePosition))
-        scrollView()?.setContentOffset(offset, animated: false)
+        guard let readerCenter = delegate else {
+            return
+        }
+
+        let totalChapters = readerCenter.totalPages
+        guard totalChapters > 0 else {
+            return
+        }
+
+        let targetChapter = max(1, min(totalChapters, Int(round(slider.value * Float(totalChapters))) + 1))
+        readerCenter.changePageWith(page: targetChapter, animated: false)
     }
 
     // MARK: - show / hide
@@ -196,32 +204,31 @@ class ScrollScrubber: NSObject, UIScrollViewDelegate {
                 return
         }
 
-        if visible && usingSlider == false {
-            setSliderVal()
+        // Show the scrubber on any scroll
+        if !visible || slider.alpha < 1 {
+            show()
         }
 
-        if (slider.alpha > 0) {
-            self.show()
-        } else if delegate?.currentPage != nil && scrollStart != nil {
-            scrollDelta = scrollView.contentOffset.forDirection(withConfiguration: readerConfig) - scrollStart
-
-            guard let pageHeight = folioReader.readerCenter?.pageHeight,
-                (scrollDeltaTimer == nil && scrollDelta > (pageHeight * 0.2 ) || (scrollDelta * -1) > (pageHeight * 0.2)) else {
-                    return
-            }
-
-            self.show()
-            self.resetScrollDelta()
-        }
+        // Don't update slider during scroll - wait until scrolling ends
     }
 
     func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
         resetScrollDelta()
+
+        // Update slider position when scrolling has finished (only for collectionView = chapter changes)
+        if scrollView is UICollectionView && !usingSlider {
+            setSliderVal()
+        }
     }
 
     func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
         scrollDeltaTimer = Timer(timeInterval:0.5, target: self, selector: #selector(ScrollScrubber.resetScrollDelta), userInfo: nil, repeats: false)
         RunLoop.current.add(scrollDeltaTimer, forMode: RunLoopMode.commonModes)
+
+        // Update slider position when programmatic scrolling has finished (like from scrubbing)
+        if scrollView is UICollectionView && !usingSlider {
+            setSliderVal()
+        }
     }
 
     @objc func resetScrollDelta() {
@@ -235,7 +242,19 @@ class ScrollScrubber: NSObject, UIScrollViewDelegate {
     }
 
     func setSliderVal() {
-        slider.value = Float(scrollTop() / height())
+        guard let readerCenter = delegate else {
+            slider.value = 0
+            return
+        }
+
+        let totalChapters = readerCenter.totalPages
+        guard totalChapters > 0 else {
+            slider.value = 0
+            return
+        }
+
+        let currentChapter = readerCenter.currentPageNumber
+        slider.value = Float(currentChapter - 1) / Float(totalChapters)
     }
 
     // MARK: - utility methods
@@ -251,7 +270,7 @@ class ScrollScrubber: NSObject, UIScrollViewDelegate {
                 return 0
         }
 
-        return webView.scrollView.contentSize.height - pageHeight + 44
+        return max(0, webView.scrollView.contentSize.height - pageHeight)
     }
     
     fileprivate func scrollTop() -> CGFloat {
