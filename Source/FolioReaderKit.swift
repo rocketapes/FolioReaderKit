@@ -366,48 +366,174 @@ extension FolioReader {
     /// Save Reader state, book, page and scroll offset.
    @objc open func saveReaderState() {
           guard isReaderOpen else {
+              print("[FolioReader] saveReaderState skipped: reader not open")
               return
           }
           guard let currentPage = self.readerCenter?.currentPage, let webView = currentPage.webView else {
+              print("[FolioReader] saveReaderState skipped: no current page or webView")
               return
           }
-          let height = UIScreen.main.bounds.height - 75
-          webView.js("createSelectionFromPoint(0, 1, 250, \(height))")  { _ in }
-          let style = "last-read"
-          webView.js("getHighlightSerialization('\(style)')") { highlightAndReturn in
-          guard let jsonData = highlightAndReturn?.data(using: String.Encoding.utf8),
-              let json = try? JSONSerialization.jsonObject(with: jsonData, options: []) as? NSArray,
-              let dic = json?.firstObject as? [String: String],
-              let rangyString = dic["rangy"]
-          else {
+
+          // Spawn async task to save reader state
+          Task {
+              await self.persistReaderState(page: currentPage, webView: webView)
+          }
+      }
+
+      /// Asynchronously persists reader state to Realm database
+      /// - Parameters:
+      ///   - page: Current reader page
+      ///   - webView: Current webView containing reader content
+      private func persistReaderState(page: FolioReaderPage, webView: FolioReaderWebView) async {
+          // Validate we have minimum required data before proceeding
+          guard let bookId = self.readerCenter?.rwBook?.id,
+                let currentPageNumber = self.readerCenter?.currentPageNumber,
+                let isVertical = self.readerContainer?.readerConfig.scrollDirection.isVertical else {
+              print("[FolioReader] Cannot save reader state: missing required data (bookId/currentPageNumber/scrollDirection)")
               return
           }
-          let rangy = FolioUtils.makeRangyValidIfNeeded(rangy: Highlight.typeTextContentWithLine + rangyString)
+
+          // Capture all available state data (only values that exist)
+          let pageNumber = max(currentPageNumber - 1, 0)
+          let filePath = page.resource?.href  // Optional - can be nil
+          let pageOffsetX = webView.scrollView.contentOffset.x
+          let pageOffsetY = webView.scrollView.contentOffset.y
+          let fontSize = self.currentFontSize.rawValue
+          let isLandscape = UIDevice.current.orientation.isLandscape
+          let subPage = isVertical ?
+              Int(pageOffsetY / UIScreen.main.bounds.size.height) :
+              Int(pageOffsetX / UIScreen.main.bounds.size.width)
+          let pageSize = "\(Int(UIScreen.main.bounds.size.width))x\(Int(UIScreen.main.bounds.size.height))"
+          let timestamp = Date()
+
+          // Optionally try to extract rangy position (non-blocking)
+          var rangyPosition: String?  // Optional - can be nil
           do {
-            let realm = try Realm()
-            realm.beginWrite()
-            let lastRead = FolioLastRead()
-            lastRead.bookId = self.readerCenter?.rwBook?.id ?? 0
-            lastRead.page = max( (self.readerCenter?.currentPageNumber ?? 0) - 1, 0 )
-            lastRead.position = rangy
-            lastRead.created = Date()
-            lastRead.modified = Date()
-            lastRead.filePath = currentPage.resource?.href
-            lastRead.pageOffsetX = webView.scrollView.contentOffset.x
-            lastRead.pageOffsetY = webView.scrollView.contentOffset.y
-            lastRead.fontSize = self.currentFontSize.rawValue
-            lastRead.isVertical = self.readerContainer?.readerConfig.scrollDirection.isVertical ?? false
-            lastRead.isLandscape = UIDevice.current.orientation.isLandscape
-            lastRead.subPage = (self.readerContainer?.readerConfig.scrollDirection.isVertical == true) ?
-                Int(webView.scrollView.contentOffset.y / UIScreen.main.bounds.size.height) :
-                Int(webView.scrollView.contentOffset.x / UIScreen.main.bounds.size.width)
-            lastRead.pageSize = "\(Int(UIScreen.main.bounds.size.width))x\(Int(UIScreen.main.bounds.size.height))"
-            realm.add(lastRead, update: .all)
-            try realm.commitWrite()
+              rangyPosition = try await self.extractRangyPosition(from: webView)
+              if rangyPosition != nil {
+                  print("[FolioReader] Successfully extracted rangy position")
+              } else {
+                  print("[FolioReader] Rangy position extraction returned nil (will save without it)")
+              }
           } catch {
-              print("Error on persist last read: \(error)")
+              print("[FolioReader] Failed to extract rangy position: \(error.localizedDescription) (will save without it)")
           }
+
+          // Persist to Realm - only save if we have valid required data
+          await self.saveToRealm(
+              bookId: bookId,
+              page: pageNumber,
+              position: rangyPosition,  // Optional
+              filePath: filePath,  // Optional
+              pageOffsetX: pageOffsetX,
+              pageOffsetY: pageOffsetY,
+              fontSize: fontSize,
+              isVertical: isVertical,
+              isLandscape: isLandscape,
+              subPage: subPage,
+              pageSize: pageSize,
+              timestamp: timestamp
+          )
+      }
+
+      /// Extracts rangy position string from webView JavaScript
+      /// - Parameter webView: WebView to extract position from
+      /// - Returns: Rangy position string or nil if extraction fails
+      /// - Throws: Error if JavaScript execution or JSON parsing fails
+      private func extractRangyPosition(from webView: FolioReaderWebView) async throws -> String? {
+          let height = UIScreen.main.bounds.height - 75
+
+          // Create selection point
+          return try await withCheckedThrowingContinuation { continuation in
+              webView.js("createSelectionFromPoint(0, 1, 250, \(height))") { _ in
+                  // Get highlight serialization
+                  webView.js("getHighlightSerialization('last-read')") { highlightResult in
+                      guard let jsonString = highlightResult else {
+                          continuation.resume(returning: nil)
+                          return
+                      }
+
+                      guard let jsonData = jsonString.data(using: .utf8) else {
+                          continuation.resume(throwing: NSError(
+                              domain: "FolioReader",
+                              code: 1001,
+                              userInfo: [NSLocalizedDescriptionKey: "Failed to convert highlight result to UTF8 data"]
+                          ))
+                          return
+                      }
+
+                      do {
+                          guard let json = try JSONSerialization.jsonObject(with: jsonData) as? NSArray,
+                                let dic = json.firstObject as? [String: String],
+                                let rangyString = dic["rangy"] else {
+                              continuation.resume(returning: nil)
+                              return
+                          }
+
+                          let validRangy = FolioUtils.makeRangyValidIfNeeded(
+                              rangy: Highlight.typeTextContentWithLine + rangyString
+                          )
+                          continuation.resume(returning: validRangy)
+                      } catch {
+                          continuation.resume(throwing: NSError(
+                              domain: "FolioReader",
+                              code: 1002,
+                              userInfo: [
+                                  NSLocalizedDescriptionKey: "Failed to parse highlight JSON",
+                                  NSUnderlyingErrorKey: error
+                              ]
+                          ))
+                      }
+                  }
+              }
           }
+      }
+
+      /// Saves reader state to Realm database
+      /// - Parameters: All reader state properties to persist
+      private func saveToRealm(
+          bookId: Int,
+          page: Int,
+          position: String?,
+          filePath: String?,
+          pageOffsetX: CGFloat,
+          pageOffsetY: CGFloat,
+          fontSize: Int,
+          isVertical: Bool,
+          isLandscape: Bool,
+          subPage: Int,
+          pageSize: String,
+          timestamp: Date
+      ) async {
+          await Task.detached {
+              do {
+                  let realm = try Realm()
+                  try realm.write {
+                      let lastRead = FolioLastRead()
+                      lastRead.bookId = bookId
+                      lastRead.page = page
+                      lastRead.position = position
+                      lastRead.created = timestamp
+                      lastRead.modified = timestamp
+                      lastRead.filePath = filePath
+                      lastRead.pageOffsetX = pageOffsetX
+                      lastRead.pageOffsetY = pageOffsetY
+                      lastRead.fontSize = fontSize
+                      lastRead.isVertical = isVertical
+                      lastRead.isLandscape = isLandscape
+                      lastRead.subPage = subPage
+                      lastRead.pageSize = pageSize
+                      realm.add(lastRead, update: .all)
+
+                      print("[FolioReader] Successfully saved reader state - bookId: \(bookId), page: \(page), hasPosition: \(position != nil)")
+                  }
+              } catch {
+                  print("[FolioReader] ❌ Failed to persist reader state to Realm: \(error.localizedDescription)")
+                  if let realmError = error as? Realm.Error {
+                      print("[FolioReader] Realm error details: \(realmError)")
+                  }
+              }
+          }.value
       }
 
     /// Closes and save the reader current instance.
