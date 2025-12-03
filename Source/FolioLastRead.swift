@@ -49,12 +49,30 @@ open class FolioLastRead: Object {
     }
     
     var rangyId: String? {
-        guard let elements = position?.split(separator: "$"),
-            elements.count > 2
-        else {
+        guard let pos = position, !pos.isEmpty else {
+            print("[LastRead:RANGY] rangyId extraction failed - position is nil or empty")
             return nil
         }
-        return String.init(elements[2])
+
+        // Try iOS format first: uses $ separator (e.g., "type:textContent$...$selectionBoundary_123$...")
+        let dollarElements = pos.split(separator: "$")
+        if dollarElements.count > 2 {
+            let rangyId = String(dollarElements[2])
+            print("[LastRead:RANGY] rangyId extracted (iOS format): \(rangyId)")
+            return rangyId
+        }
+
+        // Try Android format: uses | separator (e.g., "type:textContent|de.rheinwerk.ebook...")
+        // Android format doesn't contain a usable rangyId - it's just metadata
+        let pipeElements = pos.split(separator: "|")
+        if pipeElements.count >= 2 {
+            print("[LastRead:RANGY] Android format detected - no usable rangyId (position='\(pos)')")
+            // Android format doesn't have a rangyId we can use for scrollTo()
+            return nil
+        }
+
+        print("[LastRead:RANGY] rangyId extraction failed - unknown format (position='\(pos)', $count=\(dollarElements.count), |count=\(pipeElements.count))")
+        return nil
     }
     
     override open class func primaryKey()-> String {

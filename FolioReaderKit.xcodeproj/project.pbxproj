@@ -115,6 +115,8 @@
 		B0D69CD31D0388EF003B4CCD /* JSQWebViewController.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B0D69CCD1D0388EF003B4CCD /* JSQWebViewController.framework */; };
 		B0D69CD51D0388EF003B4CCD /* ZFDragableModalTransition.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B0D69CCF1D0388EF003B4CCD /* ZFDragableModalTransition.framework */; };
 		B0D69CD61D0388EF003B4CCD /* ZipArchive.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B0D69CD01D0388EF003B4CCD /* ZipArchive.framework */; };
+		DD732C552EE04B4900123C8C /* LastReadSaveManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD732C542EE04B4900123C8C /* LastReadSaveManager.swift */; };
+		DD732C562EE04B4900123C8C /* LastReadSaveManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD732C542EE04B4900123C8C /* LastReadSaveManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -206,6 +208,7 @@
 		B0D69CCD1D0388EF003B4CCD /* JSQWebViewController.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JSQWebViewController.framework; path = Carthage/Build/iOS/JSQWebViewController.framework; sourceTree = "<group>"; };
 		B0D69CCF1D0388EF003B4CCD /* ZFDragableModalTransition.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ZFDragableModalTransition.framework; path = Carthage/Build/iOS/ZFDragableModalTransition.framework; sourceTree = "<group>"; };
 		B0D69CD01D0388EF003B4CCD /* ZipArchive.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ZipArchive.framework; path = Carthage/Build/iOS/ZipArchive.framework; sourceTree = "<group>"; };
+		DD732C542EE04B4900123C8C /* LastReadSaveManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastReadSaveManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -254,6 +257,7 @@
 		1A958F031D397BE900D56699 /* Source */ = {
 			isa = PBXGroup;
 			children = (
+				DD732C542EE04B4900123C8C /* LastReadSaveManager.swift */,
 				9467849D2E41165A00AD2D73 /* CustomClasses */,
 				1A958F041D397BE900D56699 /* EPUBCore */,
 				1A958F1D1D397BE900D56699 /* Models */,
@@ -610,6 +614,7 @@
 				B0D69CC91D0387F7003B4CCD /* SMSegment.swift in Sources */,
 				B0D69CCA1D0387F7003B4CCD /* SMSegmentView.swift in Sources */,
 				1A958FA01D397BE900D56699 /* FolioReaderContainer.swift in Sources */,
+				DD732C552EE04B4900123C8C /* LastReadSaveManager.swift in Sources */,
 				1A958FA81D397BE900D56699 /* FolioReaderSharingProvider.swift in Sources */,
 				1A958FAB1D397BE900D56699 /* Highlight+Helper.swift in Sources */,
 				3AD5EEB91D9433C100E42810 /* FolioReaderWebView.swift in Sources */,
@@ -660,6 +665,7 @@
 				3A27F0B31FD9C25500D84A57 /* FolioReaderChapterListCell.swift in Sources */,
 				3A27F0BD1FD9C25500D84A57 /* FolioReaderSharingProvider.swift in Sources */,
 				B0D6991B1D035FA2003B4CCD /* FolioReaderKitTests.swift in Sources */,
+				DD732C562EE04B4900123C8C /* LastReadSaveManager.swift in Sources */,
 				3A27F0BF1FD9C25500D84A57 /* FolioReaderWebView.swift in Sources */,
 				3A27F0BA1FD9C25500D84A57 /* FolioReaderPageIndicator.swift in Sources */,
 				3A27F0A51FD9C24A00D84A57 /* FRSpine.swift in Sources */,

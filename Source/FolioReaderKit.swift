@@ -142,14 +142,47 @@ open class FolioReader: NSObject {
     // Add necessary observers
     fileprivate func addObservers() {
         removeObservers()
-        NotificationCenter.default.addObserver(self, selector: #selector(saveReaderState), name: .UIApplicationWillResignActive, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(saveReaderState), name: .UIApplicationWillTerminate, object: nil)
+        print("[LastRead:OBSERVERS] Adding observers for instance \(Unmanaged.passUnretained(self).toOpaque())")
+        NotificationCenter.default.addObserver(self, selector: #selector(handleAppWillResignActive), name: .UIApplicationWillResignActive, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(handleAppWillTerminate), name: .UIApplicationWillTerminate, object: nil)
     }
 
     /// Remove necessary observers
     fileprivate func removeObservers() {
+        print("[LastRead:OBSERVERS] Removing observers for instance \(Unmanaged.passUnretained(self).toOpaque())")
         NotificationCenter.default.removeObserver(self, name: .UIApplicationWillResignActive, object: nil)
         NotificationCenter.default.removeObserver(self, name: .UIApplicationWillTerminate, object: nil)
+    }
+
+    /// Handle app will resign active - flush pending save immediately (fast, no rangy)
+    /// App may come back, so we just need the page position saved
+    @objc private func handleAppWillResignActive() {
+        print("[LastRead:APP] App will resign active (instance \(Unmanaged.passUnretained(self).toOpaque()))")
+        let freshState = captureStateSnapshot()
+        Task {
+            // Manager will handle duplicate prevention with isLifecycleSave=true
+            await LastReadSaveManager.shared.flushWithRangy(
+                freshState: freshState,
+                rangy: nil,
+                isLifecycleSave: true
+            )
+        }
+    }
+
+    /// Handle app will terminate - extract rangy first, then flush
+    /// Note: UIApplicationWillTerminate gives very limited time (~5s), so we try rangy but may timeout
+    @objc private func handleAppWillTerminate() {
+        print("[LastRead:APP] App will terminate (instance \(Unmanaged.passUnretained(self).toOpaque()))")
+        let freshState = captureStateSnapshot()
+        Task { [weak self] in
+            let rangy = await self?.extractRangy()
+            // Manager will handle duplicate prevention with isLifecycleSave=true
+            await LastReadSaveManager.shared.flushWithRangy(
+                freshState: freshState,
+                rangy: rangy,
+                isLifecycleSave: true
+            )
+        }
     }
 }
 
@@ -363,187 +396,151 @@ extension FolioReader {
 
 extension FolioReader {
 
-    /// Save Reader state, book, page and scroll offset.
-   @objc open func saveReaderState() {
-          guard isReaderOpen else {
-              print("[FolioReader] saveReaderState skipped: reader not open")
-              return
-          }
-          guard let currentPage = self.readerCenter?.currentPage, let webView = currentPage.webView else {
-              print("[FolioReader] saveReaderState skipped: no current page or webView")
-              return
-          }
+    /// Capture current UI state snapshot (must be called on main thread)
+    fileprivate func captureStateSnapshot() -> LastReadSaveManager.StateSnapshot? {
+        assert(Thread.isMainThread, "captureStateSnapshot must be called on main thread")
 
-          // Spawn async task to save reader state
-          Task {
-              await self.persistReaderState(page: currentPage, webView: webView)
-          }
-      }
+        guard isReaderOpen,
+              let currentPage = self.readerCenter?.currentPage,
+              let webView = currentPage.webView,
+              let bookId = self.readerCenter?.rwBook?.id,
+              let currentPageNumber = self.readerCenter?.currentPageNumber,
+              let isVertical = self.readerContainer?.readerConfig.scrollDirection.isVertical
+        else { return nil }
 
-      /// Asynchronously persists reader state to Realm database
-      /// - Parameters:
-      ///   - page: Current reader page
-      ///   - webView: Current webView containing reader content
-      private func persistReaderState(page: FolioReaderPage, webView: FolioReaderWebView) async {
-          // Validate we have minimum required data before proceeding
-          guard let bookId = self.readerCenter?.rwBook?.id,
-                let currentPageNumber = self.readerCenter?.currentPageNumber,
-                let isVertical = self.readerContainer?.readerConfig.scrollDirection.isVertical else {
-              print("[FolioReader] Cannot save reader state: missing required data (bookId/currentPageNumber/scrollDirection)")
-              return
-          }
+        let pageNumber = max(currentPageNumber - 1, 0)
+        let offsetX = webView.scrollView.contentOffset.x
+        let offsetY = webView.scrollView.contentOffset.y
+        let subPage = isVertical
+            ? Int(offsetY / UIScreen.main.bounds.size.height)
+            : Int(offsetX / UIScreen.main.bounds.size.width)
 
-          // Capture all available state data (only values that exist)
-          let pageNumber = max(currentPageNumber - 1, 0)
-          let filePath = page.resource?.href  // Optional - can be nil
-          let pageOffsetX = webView.scrollView.contentOffset.x
-          let pageOffsetY = webView.scrollView.contentOffset.y
-          let fontSize = self.currentFontSize.rawValue
-          let isLandscape = UIDevice.current.orientation.isLandscape
-          let subPage = isVertical ?
-              Int(pageOffsetY / UIScreen.main.bounds.size.height) :
-              Int(pageOffsetX / UIScreen.main.bounds.size.width)
-          let pageSize = "\(Int(UIScreen.main.bounds.size.width))x\(Int(UIScreen.main.bounds.size.height))"
-          let timestamp = Date()
+        return LastReadSaveManager.StateSnapshot(
+            bookId: bookId,
+            pageNumber: pageNumber,
+            filePath: currentPage.resource?.href,
+            pageOffsetX: offsetX,
+            pageOffsetY: offsetY,
+            fontSize: self.currentFontSize.rawValue,
+            isVertical: isVertical,
+            isLandscape: UIDevice.current.orientation.isLandscape,
+            subPage: subPage,
+            pageSize: "\(Int(UIScreen.main.bounds.size.width))x\(Int(UIScreen.main.bounds.size.height))",
+            timestamp: Date()
+        )
+    }
 
-          // Optionally try to extract rangy position (non-blocking)
-          var rangyPosition: String?  // Optional - can be nil
-          do {
-              rangyPosition = try await self.extractRangyPosition(from: webView)
-              if rangyPosition != nil {
-                  print("[FolioReader] Successfully extracted rangy position")
-              } else {
-                  print("[FolioReader] Rangy position extraction returned nil (will save without it)")
-              }
-          } catch {
-              print("[FolioReader] Failed to extract rangy position: \(error.localizedDescription) (will save without it)")
-          }
+    /// Extract rangy position via JavaScript (async/await)
+    fileprivate func extractRangy() async -> String? {
+        guard let webView = self.readerCenter?.currentPage?.webView else {
+            return nil
+        }
 
-          // Persist to Realm - only save if we have valid required data
-          await self.saveToRealm(
-              bookId: bookId,
-              page: pageNumber,
-              position: rangyPosition,  // Optional
-              filePath: filePath,  // Optional
-              pageOffsetX: pageOffsetX,
-              pageOffsetY: pageOffsetY,
-              fontSize: fontSize,
-              isVertical: isVertical,
-              isLandscape: isLandscape,
-              subPage: subPage,
-              pageSize: pageSize,
-              timestamp: timestamp
-          )
-      }
+        let height = UIScreen.main.bounds.height - 75
 
-      /// Extracts rangy position string from webView JavaScript
-      /// - Parameter webView: WebView to extract position from
-      /// - Returns: Rangy position string or nil if extraction fails
-      /// - Throws: Error if JavaScript execution or JSON parsing fails
-      private func extractRangyPosition(from webView: FolioReaderWebView) async throws -> String? {
-          let height = UIScreen.main.bounds.height - 75
+        return await withCheckedContinuation { continuation in
+            var completed = false
 
-          // Create selection point
-          return try await withCheckedThrowingContinuation { continuation in
-              webView.js("createSelectionFromPoint(0, 1, 250, \(height))") { _ in
-                  // Get highlight serialization
-                  webView.js("getHighlightSerialization('last-read')") { highlightResult in
-                      guard let jsonString = highlightResult else {
-                          continuation.resume(returning: nil)
-                          return
-                      }
+            // Timeout after 2 seconds to prevent hanging
+            let timeoutWorkItem = DispatchWorkItem {
+                if !completed {
+                    completed = true
+                    print("[LastRead:RANGY] Extraction timed out after 2s")
+                    continuation.resume(returning: nil)
+                }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0, execute: timeoutWorkItem)
 
-                      guard let jsonData = jsonString.data(using: .utf8) else {
-                          continuation.resume(throwing: NSError(
-                              domain: "FolioReader",
-                              code: 1001,
-                              userInfo: [NSLocalizedDescriptionKey: "Failed to convert highlight result to UTF8 data"]
-                          ))
-                          return
-                      }
+            webView.js("createSelectionFromPoint(0, 1, 250, \(height))") { _ in
+                webView.js("getHighlightSerialization('last-read')") { result in
+                    guard !completed else { return }
+                    completed = true
+                    timeoutWorkItem.cancel()
 
-                      do {
-                          guard let json = try JSONSerialization.jsonObject(with: jsonData) as? NSArray,
-                                let dic = json.firstObject as? [String: String],
-                                let rangyString = dic["rangy"] else {
-                              continuation.resume(returning: nil)
-                              return
-                          }
+                    var rangy: String?
+                    if let data = result?.data(using: .utf8),
+                       let json = try? JSONSerialization.jsonObject(with: data) as? NSArray,
+                       let dict = json?.firstObject as? [String: String],
+                       let rangyStr = dict["rangy"] {
+                        rangy = FolioUtils.makeRangyValidIfNeeded(rangy: Highlight.typeTextContentWithLine + rangyStr)
+                    }
+                    continuation.resume(returning: rangy)
+                }
+            }
+        }
+    }
 
-                          let validRangy = FolioUtils.makeRangyValidIfNeeded(
-                              rangy: Highlight.typeTextContentWithLine + rangyString
-                          )
-                          continuation.resume(returning: validRangy)
-                      } catch {
-                          continuation.resume(throwing: NSError(
-                              domain: "FolioReader",
-                              code: 1002,
-                              userInfo: [
-                                  NSLocalizedDescriptionKey: "Failed to parse highlight JSON",
-                                  NSUnderlyingErrorKey: error
-                              ]
-                          ))
-                      }
-                  }
-              }
-          }
-      }
+    // MARK: - Public API
 
-      /// Saves reader state to Realm database
-      /// - Parameters: All reader state properties to persist
-      private func saveToRealm(
-          bookId: Int,
-          page: Int,
-          position: String?,
-          filePath: String?,
-          pageOffsetX: CGFloat,
-          pageOffsetY: CGFloat,
-          fontSize: Int,
-          isVertical: Bool,
-          isLandscape: Bool,
-          subPage: Int,
-          pageSize: String,
-          timestamp: Date
-      ) async {
-          await Task.detached {
-              do {
-                  let realm = try Realm()
-                  try realm.write {
-                      let lastRead = FolioLastRead()
-                      lastRead.bookId = bookId
-                      lastRead.page = page
-                      lastRead.position = position
-                      lastRead.created = timestamp
-                      lastRead.modified = timestamp
-                      lastRead.filePath = filePath
-                      lastRead.pageOffsetX = pageOffsetX
-                      lastRead.pageOffsetY = pageOffsetY
-                      lastRead.fontSize = fontSize
-                      lastRead.isVertical = isVertical
-                      lastRead.isLandscape = isLandscape
-                      lastRead.subPage = subPage
-                      lastRead.pageSize = pageSize
-                      realm.add(lastRead, update: .all)
+    /// Update reading position with debounced save.
+    /// Call on every page change (scroll end, navigation, etc.)
+    open func updateCurrentState() {
+        guard let state = captureStateSnapshot() else { return }
+        Task {
+            await LastReadSaveManager.shared.scheduleSave(state: state)
+        }
+    }
 
-                      print("[FolioReader] Successfully saved reader state - bookId: \(bookId), page: \(page), hasPosition: \(position != nil)")
-                  }
-              } catch {
-                  print("[FolioReader] ❌ Failed to persist reader state to Realm: \(error.localizedDescription)")
-                  if let realmError = error as? Realm.Error {
-                      print("[FolioReader] Realm error details: \(realmError)")
-                  }
-              }
-          }.value
-      }
+    /// Save Reader state. Use isClosingSave=true when closing to include rangy.
+    @objc open func saveReaderState(isClosingSave: Bool = false) {
+        if isClosingSave {
+            // For closing save, use Task to await rangy extraction
+            let freshState = captureStateSnapshot()
+            Task {
+                let rangy = await extractRangy()
+                await LastReadSaveManager.shared.flushWithRangy(
+                    freshState: freshState,
+                    rangy: rangy
+                )
+            }
+        } else {
+            updateCurrentState()
+        }
+    }
 
-    /// Closes and save the reader current instance.
+    /// Legacy method - kept for API compatibility
+    open func markPreNavigationSave() {}
+
+    /// Legacy method - kept for API compatibility
+    open func clearPreNavigationSave() {}
+
+    /// Closes and saves the reader current instance.
     open func close() {
-        self.saveReaderState()
-        self.isReaderOpen = false
-        self.isReaderReady = false
-        self.readerAudioPlayer?.stop(immediate: true)
-        self.defaults.set(0, forKey: kCurrentTOCMenu)
-        self.delegate?.folioReaderDidClose?(self)
+        print("[LastRead:CLOSE] Closing reader...")
+
+        // Capture state while UI is still valid
+        let freshState = captureStateSnapshot()
+
+        // Use Task to properly sequence: extract rangy → save → teardown
+        Task { [weak self] in
+            // Extract rangy (handles nil webView)
+            let rangy = await self?.extractRangy()
+
+            // Save to Realm and wait for completion
+            await LastReadSaveManager.shared.flushWithRangy(
+                freshState: freshState,
+                rangy: rangy
+            )
+
+            // Now safe to teardown - save is complete
+            await MainActor.run {
+                self?.performTeardown()
+            }
+        }
+    }
+
+    /// Clean up reader state after close
+    private func performTeardown() {
+        removeObservers()  // Clean up notification observers
+        Task {
+            await LastReadSaveManager.shared.reset()
+        }
+        isReaderOpen = false
+        isReaderReady = false
+        readerAudioPlayer?.stop(immediate: true)
+        defaults.set(0, forKey: kCurrentTOCMenu)
+        delegate?.folioReaderDidClose?(self)
+        print("[LastRead:CLOSE] Reader closed")
     }
 }
 
