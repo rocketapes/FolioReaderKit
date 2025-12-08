@@ -9,6 +9,9 @@
 import Foundation
 import UIKit
 
+// MARK: - Logging
+private let utilsLogger = FolioLogger(category: .readerKit)
+
 extension UICollectionViewScrollDirection {
     static func direction(withConfiguration readerConfig: FolioReaderConfig) -> UICollectionViewScrollDirection {
         return readerConfig.isDirection(.vertical, .horizontal, .horizontal)
@@ -112,14 +115,14 @@ internal extension UIColor {
                     alpha = CGFloat(hexValue & 0x000000FF)         / 255.0
                     break
                 default:
-                    print("Invalid RGB string, number of characters after '#' should be either 3, 4, 6 or 8", terminator: "")
+                    utilsLogger.warning("Invalid RGB string, number of characters after '#' should be either 3, 4, 6 or 8")
                     break
                 }
             } else {
-                print("Scan hex error")
+                utilsLogger.warning("Scan hex error")
             }
         } else {
-            print("Invalid RGB string, missing '#' as prefix", terminator: "")
+            utilsLogger.warning("Invalid RGB string, missing '#' as prefix")
         }
         self.init(red:red, green:green, blue:blue, alpha:alpha)
     }

@@ -125,6 +125,10 @@ open class FolioReader: NSObject {
     /// Check if reader is open and ready
     open var isReaderReady = false
 
+    // MARK: - Logging
+    private let lifecycleLogger = FolioLogger(category: .lifecycle)
+    private let lastReadLogger = FolioLogger(category: .lastRead)
+
     /// Check if layout needs to change to fit Right To Left
     open var needsRTLChange: Bool {
         return (self.readerContainer?.book.spine.isRtl == true && self.readerContainer?.readerConfig.scrollDirection == .horizontal)
@@ -144,6 +148,7 @@ open class FolioReader: NSObject {
         removeObservers()
         NotificationCenter.default.addObserver(self, selector: #selector(saveReaderState), name: .UIApplicationWillResignActive, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(saveReaderState), name: .UIApplicationWillTerminate, object: nil)
+        self.lifecycleLogger.info("addObservers() registered for UIApplicationWillResignActive and UIApplicationWillTerminate")
     }
 
     /// Remove necessary observers
@@ -364,60 +369,106 @@ extension FolioReader {
 extension FolioReader {
 
     /// Save Reader state, book, page and scroll offset.
-   @objc open func saveReaderState() {
-          guard isReaderOpen else {
-              return
-          }
-          guard let currentPage = self.readerCenter?.currentPage, let webView = currentPage.webView else {
-              return
-          }
-          let height = UIScreen.main.bounds.height - 75
-          webView.js("createSelectionFromPoint(0, 1, 250, \(height))")  { _ in }
-          let style = "last-read"
-          webView.js("getHighlightSerialization('\(style)')") { highlightAndReturn in
-          guard let jsonData = highlightAndReturn?.data(using: String.Encoding.utf8),
-              let json = try? JSONSerialization.jsonObject(with: jsonData, options: []) as? NSArray,
-              let dic = json?.firstObject as? [String: String],
-              let rangyString = dic["rangy"]
-          else {
-              return
-          }
-          let rangy = FolioUtils.makeRangyValidIfNeeded(rangy: Highlight.typeTextContentWithLine + rangyString)
-          do {
+    /// Note: This method saves synchronously using available page/scroll data to avoid race conditions.
+    /// The rangy position is fetched asynchronously and updated if the WebView is still available.
+    @objc open func saveReaderState() {
+        let bookId = self.readerCenter?.rwBook?.id ?? 0
+        self.lastReadLogger.info("saveReaderState() called for bookId=\(bookId), isReaderOpen=\(self.isReaderOpen)")
+
+        guard isReaderOpen else {
+            self.lastReadLogger.warning("saveReaderState() aborted: reader is closed")
+            return
+        }
+        guard let currentPage = self.readerCenter?.currentPage, let webView = currentPage.webView else {
+            self.lastReadLogger.warning("saveReaderState() aborted: currentPage or webView is nil")
+            return
+        }
+
+        // capture all values synchronously before any async operations to avoid race condition
+        let pageNumber = max((self.readerCenter?.currentPageNumber ?? 0) - 1, 0)
+        let filePath = currentPage.resource?.href
+        let offsetX = webView.scrollView.contentOffset.x
+        let offsetY = webView.scrollView.contentOffset.y
+        let fontSize = self.currentFontSize.rawValue
+        let isVertical = self.readerContainer?.readerConfig.scrollDirection.isVertical ?? false
+        let isLandscape = UIDevice.current.orientation.isLandscape
+        let subPage = isVertical ?
+            Int(offsetY / UIScreen.main.bounds.size.height) :
+            Int(offsetX / UIScreen.main.bounds.size.width)
+        let pageSize = "\(Int(UIScreen.main.bounds.size.width))x\(Int(UIScreen.main.bounds.size.height))"
+
+        self.lastReadLogger.debug("saveReaderState() captured values - bookId=\(bookId), page=\(pageNumber), offsetX=\(offsetX), offsetY=\(offsetY)")
+
+        // save immediately with captured values (rangy will be updated async if possible)
+        do {
             let realm = try Realm()
             realm.beginWrite()
             let lastRead = FolioLastRead()
-            lastRead.bookId = self.readerCenter?.rwBook?.id ?? 0
-            lastRead.page = max( (self.readerCenter?.currentPageNumber ?? 0) - 1, 0 )
-            lastRead.position = rangy
+            lastRead.bookId = bookId
+            lastRead.page = pageNumber
+            lastRead.position = nil // will be updated async if JS callback succeeds
             lastRead.created = Date()
             lastRead.modified = Date()
-            lastRead.filePath = currentPage.resource?.href
-            lastRead.pageOffsetX = webView.scrollView.contentOffset.x
-            lastRead.pageOffsetY = webView.scrollView.contentOffset.y
-            lastRead.fontSize = self.currentFontSize.rawValue
-            lastRead.isVertical = self.readerContainer?.readerConfig.scrollDirection.isVertical ?? false
-            lastRead.isLandscape = UIDevice.current.orientation.isLandscape
-            lastRead.subPage = (self.readerContainer?.readerConfig.scrollDirection.isVertical == true) ?
-                Int(webView.scrollView.contentOffset.y / UIScreen.main.bounds.size.height) :
-                Int(webView.scrollView.contentOffset.x / UIScreen.main.bounds.size.width)
-            lastRead.pageSize = "\(Int(UIScreen.main.bounds.size.width))x\(Int(UIScreen.main.bounds.size.height))"
+            lastRead.filePath = filePath
+            lastRead.pageOffsetX = offsetX
+            lastRead.pageOffsetY = offsetY
+            lastRead.fontSize = fontSize
+            lastRead.isVertical = isVertical
+            lastRead.isLandscape = isLandscape
+            lastRead.subPage = subPage
+            lastRead.pageSize = pageSize
+            lastRead.isSynced = false
             realm.add(lastRead, update: .all)
             try realm.commitWrite()
-          } catch {
-              print("Error on persist last read: \(error)")
-          }
-          }
-      }
+            self.lastReadLogger.notice("Successfully saved last read position to Realm - bookId=\(bookId), page=\(pageNumber), subPage=\(subPage)")
+        } catch {
+            self.lastReadLogger.error("Failed to persist last read synchronously: \(error.localizedDescription)")
+        }
+
+        // now try to get rangy position asynchronously and update if successful
+        let height = UIScreen.main.bounds.height - 75
+        webView.js("createSelectionFromPoint(0, 1, 250, \(height))") { _ in }
+        let style = "last-read"
+        webView.js("getHighlightSerialization('\(style)')") { [weak self] highlightAndReturn in
+            self?.lastReadLogger.debug("JS callback received, highlightAndReturn=\(highlightAndReturn ?? "nil")")
+            guard let jsonData = highlightAndReturn?.data(using: String.Encoding.utf8),
+                let json = try? JSONSerialization.jsonObject(with: jsonData, options: []) as? NSArray,
+                let dic = json?.firstObject as? [String: String],
+                let rangyString = dic["rangy"]
+            else {
+                self?.lastReadLogger.debug("Could not parse rangy, but position already saved with page/offset data")
+                return
+            }
+
+            // update the saved position with rangy data for more precise restoration
+            let rangy = FolioUtils.makeRangyValidIfNeeded(rangy: Highlight.typeTextContentWithLine + rangyString)
+            do {
+                let realm = try Realm()
+                if let existingLastRead = realm.object(ofType: FolioLastRead.self, forPrimaryKey: bookId) {
+                    realm.beginWrite()
+                    existingLastRead.position = rangy
+                    existingLastRead.isSynced = false
+                    try realm.commitWrite()
+                    self?.lastReadLogger.notice("Successfully updated rangy position for bookId=\(bookId)")
+                }
+            } catch {
+                self?.lastReadLogger.error("Failed to update rangy position: \(error.localizedDescription)")
+            }
+        }
+    }
 
     /// Closes and save the reader current instance.
     open func close() {
+        self.lifecycleLogger.info("close() called - about to save state, isReaderOpen=\(self.isReaderOpen)")
         self.saveReaderState()
+        self.lifecycleLogger.info("close() - state saved, now setting isReaderOpen=false")
         self.isReaderOpen = false
         self.isReaderReady = false
         self.readerAudioPlayer?.stop(immediate: true)
         self.defaults.set(0, forKey: kCurrentTOCMenu)
+        self.lifecycleLogger.info("close() - calling delegate folioReaderDidClose")
         self.delegate?.folioReaderDidClose?(self)
+        self.lifecycleLogger.notice("Reader closed successfully")
     }
 }
 

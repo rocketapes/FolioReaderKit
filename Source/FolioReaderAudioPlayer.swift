@@ -10,6 +10,9 @@ import UIKit
 import AVFoundation
 import MediaPlayer
 
+// MARK: - Logging
+private let audioLogger = FolioLogger(category: .audio)
+
 open class FolioReaderAudioPlayer: NSObject {
 
     var isTextToSpeech = false
@@ -257,8 +260,7 @@ open class FolioReaderAudioPlayer: NSObject {
     @discardableResult fileprivate func _playFragment(_ smil: FRSmilElement?) -> Bool {
 
         guard let smil = smil else {
-            // FIXME: What about the log that the library prints in the console? shouldn’t we disable it? use another library for that or some compiler flags?
-            print("no more parallel audio to play")
+            audioLogger.debug("no more parallel audio to play")
             self.stop()
             return false
         }
@@ -290,7 +292,7 @@ open class FolioReaderAudioPlayer: NSObject {
 
                 updateNowPlayingInfo()
             } catch {
-                print("could not read audio file:", audioFile ?? "nil")
+                audioLogger.error("could not read audio file: \(audioFile ?? "nil")")
                 return false
             }
         }

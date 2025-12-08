@@ -10,6 +10,9 @@ import WebKit
 
 public typealias JSCallback = ((String?) ->())
 
+// MARK: - Logging
+private let highlightsLogger = FolioLogger(category: .highlights)
+
 /// The custom WebView used in each page
 open class FolioReaderWebView: WKWebView {
     var isColors = false
@@ -203,9 +206,9 @@ open class FolioReaderWebView: WKWebView {
             highlight?.filePath = self.folioReader.readerCenter?.currentPage?.resource?.href
             completion(highlight)
             return
-            
+
         } catch {
-            print("Could not receive JSON")
+            highlightsLogger.error("Could not receive JSON from highlight creation")
         }
         }
         completion(nil)

@@ -8,6 +8,9 @@
 
 import UIKit
 
+// MARK: - Logging
+private let fontsMenuLogger = FolioLogger(category: .fontsMenu)
+
 public enum FolioReaderFont: Int {
     case andada = 0
     case lato
@@ -291,9 +294,9 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
     }
 
     func setupCloseButtonAccessibility() {
-        
+
         guard menuView != nil else {
-            print("ERROR: menuView is nil!")
+            fontsMenuLogger.error("menuView is nil!")
             return
         }
         

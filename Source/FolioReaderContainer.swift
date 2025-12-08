@@ -9,6 +9,10 @@
 import UIKit
 import FontBlaster
 
+// MARK: - Logging
+private let lifecycleLogger = FolioLogger(category: .lifecycle)
+private let epubParserLogger = FolioLogger(category: .epubParser)
+
 /// Reader container
 open class FolioReaderContainer: UIViewController {
     var shouldHideStatusBar = true
@@ -152,7 +156,7 @@ open class FolioReaderContainer: UIViewController {
 
         // Read async book
         guard (self.epubPath.isEmpty == false) else {
-            print("Epub path is nil.")
+            epubParserLogger.error("Epub path is nil")
             self.errorOnLoad = true
             return
         }

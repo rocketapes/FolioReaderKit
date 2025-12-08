@@ -14,6 +14,10 @@ import SSZipArchive
 import ZipArchive
 #endif
 
+// MARK: - Logging
+private let epubParserLogger = FolioLogger(category: .epubParser)
+private let contentLogger = FolioLogger(category: .contentLoading)
+
 class FREpubParser: NSObject, SSZipArchiveDelegate {
 
     let book = FRBook()
@@ -231,7 +235,7 @@ class FREpubParser: NSObject, SSZipArchiveDelegate {
 
             book.smils.add(smilFile)
         } catch {
-            print("Cannot read .smil file: "+resource.href)
+            contentLogger.error("Cannot read .smil file: \(resource.href)")
         }
     }
 
@@ -286,7 +290,7 @@ class FREpubParser: NSObject, SSZipArchiveDelegate {
                 }
             }
         } catch {
-            print("Cannot find Table of Contents.")
+            epubParserLogger.warning("Cannot find Table of Contents")
         }
 
         guard let items = tocItems else { return tableOfContent }

@@ -1,5 +1,8 @@
 import UIKit
 
+// MARK: - Logging
+private let fontsMenuLogger = FolioLogger(category: .fontsMenu)
+
 class ModernFolioReaderFontsMenu: UIViewController {
     
     
@@ -243,7 +246,7 @@ class ModernFolioReaderFontsMenu: UIViewController {
         fontSizeSlider.onDiscreteStep = { [weak self] newValue in
             guard let self = self, let fontSize = FolioReaderFontSize(rawValue: newValue) else { return }
             self.folioReader.currentFontSize = fontSize
-            print("VoiceOver/Keyboard changed font to: \(fontSize)")
+            fontsMenuLogger.debug("VoiceOver/Keyboard changed font to: \(fontSize)")
         }
         
         // Styling

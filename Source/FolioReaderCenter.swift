@@ -124,6 +124,12 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         return readerContainer.folioReader
     }
 
+    // MARK: - Logging
+    private let lifecycleLogger = FolioLogger(category: .lifecycle)
+    private let lastReadLogger = FolioLogger(category: .lastRead)
+    private let navigationLogger = FolioLogger(category: .navigation)
+    private let contentLogger = FolioLogger(category: .contentLoading)
+
     // MARK: - Init
 
     init(withContainer readerContainer: FolioReaderContainer) {
@@ -349,14 +355,17 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         self.configureNavBarButtons()
         self.setCollectionViewProgressiveDirection()
 
+        self.lastReadLogger.info("reloadData() - isFirstLoad=\(self.isFirstLoad), loadSavedPositionForCurrentBook=\(self.readerConfig.loadSavedPositionForCurrentBook)")
         if isFirstLoad,
            self.readerConfig.loadSavedPositionForCurrentBook {
             guard let lastRead = FolioLastRead.lastRead(from: self.rwBook?.id ?? 0),
                 lastRead.page >= 0 else {
+                self.lastReadLogger.info("reloadData() - No valid lastRead found, starting at page 1")
                 self.currentPageNumber = 1
                 return
             }
             let pageNumber = lastRead.page + 1
+            self.lastReadLogger.info("reloadData() - Restoring to page \(pageNumber) (lastRead.page=\(lastRead.page))")
 //            guard let position = folioReader.savedPositionForCurrentBook, let pageNumber = position["pageNumber"] as? Int, pageNumber > 0 else {
 //                self.currentPageNumber = 1
 //                return
@@ -809,7 +818,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
     
     open func changePageWith(page: Int, searchResult: FolioSearchResult, animated: Bool = false) {
         guard page < totalPages else {
-            print("Failed to load book because the requested resource is missing.")
+            self.navigationLogger.error("Failed to load book because the requested resource is missing")
             return
         }
         // Scroll to a result in current page
@@ -856,7 +865,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
 
     open func changePageWith(indexPath: IndexPath, animated: Bool = false, completion: (() -> Void)? = nil) {
         guard indexPathIsValid(indexPath) else {
-            print("ERROR: Attempt to scroll to invalid index path")
+            self.navigationLogger.error("Attempt to scroll to invalid index path")
             completion?()
             return
         }
@@ -1573,37 +1582,59 @@ extension FolioReaderCenter: FolioReaderPageDelegate {
     }
     
     private func scrollToLastReadPosition(page: FolioReaderPage, lastRead: FolioLastRead) {
+        self.lastReadLogger.debug("scrollToLastReadPosition() - bookId=\(lastRead.bookId), page=\(lastRead.page), subPage=\(lastRead.subPage), offsetX=\(lastRead.pageOffsetX), offsetY=\(lastRead.pageOffsetY)")
         // should scroll to last offset if user don't change font size, orientation
         // and scroll direction
         if shouldScrollToLastReadByLocalOffset(lastRead: lastRead) {
             let pageOffset = self.readerConfig.isDirection(lastRead.pageOffsetY, lastRead.pageOffsetX, lastRead.pageOffsetY)
+            self.lastReadLogger.debug("scrollToLastReadPosition() - using local offset: \(pageOffset)")
             page.scrollPageToOffset(pageOffset, animated: false)
             return
         }
-        // then check rangy
+        // then check rangy - only use if rangyId can be extracted
         if let position = lastRead.position, !position.isEmpty {
             if let rangyId = lastRead.rangyId {
+                self.lastReadLogger.debug("scrollToLastReadPosition() - using rangy position: \(rangyId)")
                 page.webView?.js("setLastRead('\(position)')")  { _ in }
                 page.scrollTo(rangyId, animated: false, verticalInset: false)
+                return
+            } else {
+                self.lastReadLogger.debug("scrollToLastReadPosition() - position exists but rangyId is nil, continuing to fallbacks")
             }
-            return
         }
         // otherwise check pageOffsetX, pageOffsetY
         if (lastRead.pageOffsetX > 0 || lastRead.pageOffsetY > 0) {
             let pageOffset = self.readerConfig.isDirection(lastRead.pageOffsetY, lastRead.pageOffsetX, lastRead.pageOffsetY)
+            self.lastReadLogger.debug("scrollToLastReadPosition() - using fallback offset: \(pageOffset)")
             page.scrollPageToOffset(pageOffset, animated: false)
             return
         }
+        // fallback to subPage calculation if we have a non-zero subPage
+        if lastRead.subPage > 0 {
+            let screenSize = UIScreen.main.bounds.size
+            let calculatedOffset = self.readerConfig.scrollDirection.isVertical ?
+                CGFloat(lastRead.subPage) * screenSize.height :
+                CGFloat(lastRead.subPage) * screenSize.width
+            self.lastReadLogger.debug("scrollToLastReadPosition() - using subPage calculation: subPage=\(lastRead.subPage) -> offset=\(calculatedOffset)")
+            page.scrollPageToOffset(calculatedOffset, animated: false)
+            return
+        }
+        // if subPage is 0 and offsets are 0, user was at top of page - no scroll needed
+        self.lastReadLogger.debug("scrollToLastReadPosition() - at top of page (subPage=0, offsets=0), no scroll needed")
     }
     
     public func pageDidLoad(_ page: FolioReaderPage) {
+        self.lifecycleLogger.debug("pageDidLoad() - pageNumber=\(page.pageNumber), isFirstLoad=\(self.isFirstLoad)")
         if self.readerConfig.loadSavedPositionForCurrentBook {
             if isFirstLoad {
                 updateCurrentPage(page)
                 isFirstLoad = false
                 if let lastRead = FolioLastRead.lastRead(from: self.readerContainer?.rwBook?.id ?? 0),
                     (self.currentPageNumber == lastRead.page + 1) {
+                    self.lastReadLogger.info("pageDidLoad() - scrolling to last read position")
                     scrollToLastReadPosition(page: page, lastRead: lastRead)
+                } else {
+                    self.lastReadLogger.debug("pageDidLoad() - currentPageNumber=\(self.currentPageNumber) doesn't match lastRead.page+1, not scrolling")
                 }
             } else if (self.isScrolling == false && folioReader.needsRTLChange == true) {
                 page.scrollPageToBottom()

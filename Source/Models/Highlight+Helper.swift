@@ -9,6 +9,10 @@
 import Foundation
 import RealmSwift
 
+// MARK: - Logging
+private let highlightsLogger = FolioLogger(category: .highlights)
+private let databaseLogger = FolioLogger(category: .database)
+
 /**
  HighlightStyle type, default is .Yellow.
  */
@@ -128,7 +132,7 @@ extension Highlight {
             try realm.commitWrite()
             completion?(nil)
         } catch let error as NSError {
-            print("Error on persist highlight: \(error)")
+            databaseLogger.error("Error on persist highlight: \(error.localizedDescription)")
             completion?(error)
         }
     }
@@ -146,11 +150,11 @@ extension Highlight {
                 try realm.commitWrite()
             }
         } catch let error as NSError {
-            print("Error on remove highlight: \(error)")
+            databaseLogger.error("Error on remove highlight: \(error.localizedDescription)")
         }
     }
 
-    
+
     /// Remove a Highlight. Don't really delete it. Just mark is as deleted
     ///
     /// - Parameter readerConfig: Current folio reader configuration.
@@ -166,7 +170,7 @@ extension Highlight {
                 try realm.commitWrite()
             }
         } catch let error as NSError {
-            print("Error on remove highlight: \(error)")
+            databaseLogger.error("Error on remove highlight: \(error.localizedDescription)")
         }
     }
 
@@ -184,7 +188,7 @@ extension Highlight {
             highlight = realm.objects(Highlight.self).filter(predicate).toArray(Highlight.self).first
             highlight?.remove(withConfiguration: readerConfig)
         } catch let error as NSError {
-            print("Error on remove highlight by id: \(error)")
+            databaseLogger.error("Error on remove highlight by id: \(error.localizedDescription)")
         }
     }
     
@@ -203,12 +207,12 @@ extension Highlight {
             highlight = realm.objects(Highlight.self).filter(predicate).toArray(Highlight.self).first
             return highlight
         } catch let error as NSError {
-            print("Error getting Highlight : \(error)")
+            databaseLogger.error("Error getting Highlight: \(error.localizedDescription)")
             return nil
         }
     }
 
-    
+
     /// Update a Highlight by ID
     ///
     /// - Parameters:
@@ -227,13 +231,13 @@ extension Highlight {
             highlight?.type = styleForClass(forRangy: rangy)
             highlight?.date = Date()
             try realm.commitWrite()
-            
+
         } catch let error as NSError {
-            print("Error on updateById: \(error)")
+            databaseLogger.error("Error on updateById: \(error.localizedDescription)")
         }
 
     }
-    
+
     /// Update a Highlight
     public func update(note: String, withConfiguration readerConfig: FolioReaderConfig) {
         guard let realm = try? Realm(configuration: readerConfig.realmConfiguration) else {
@@ -247,9 +251,9 @@ extension Highlight {
                 try realm.commitWrite()
             }
         } catch let error as NSError {
-            print("Error on update: \(error)")
+            databaseLogger.error("Error on update: \(error.localizedDescription)")
         }
-        
+
     }
 
     /// Return a list of Highlights with a given ID
@@ -275,7 +279,7 @@ extension Highlight {
             }
             return (highlights ?? [])
         } catch let error as NSError {
-            print("Error on fetch all by book Id: \(error)")
+            databaseLogger.error("Error on fetch all by book Id: \(error.localizedDescription)")
             return []
         }
     }
@@ -291,7 +295,7 @@ extension Highlight {
             highlights = realm.objects(Highlight.self).toArray(Highlight.self)
             return (highlights ?? [])
         } catch let error as NSError {
-            print("Error on fetch all: \(error)")
+            databaseLogger.error("Error on fetch all: \(error.localizedDescription)")
             return []
         }
     }
