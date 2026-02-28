@@ -89,6 +89,13 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
             webView?.scrollView.showsVerticalScrollIndicator = false
             webView?.scrollView.showsHorizontalScrollIndicator = false
             webView?.backgroundColor = .clear
+            webView?.isOpaque = false
+            
+            // Prevent content inset adjustment to avoid layout changes
+            if #available(iOS 11.0, *) {
+                webView?.scrollView.contentInsetAdjustmentBehavior = .never
+            }
+            
             self.contentView.addSubview(webView!)
         }
         webView?.navigationDelegate = self
@@ -135,6 +142,26 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
         webView?.setupScrollDirection()
         webView?.frame = webViewFrame()
     }
+    
+    func webViewFrame() -> CGRect {
+        let baseFrame = safeAreaLayoutGuide.layoutFrame
+        guard (self.readerConfig.hideBars == false) else {
+            return baseFrame
+        }
+        let statusbarHeight = UIApplication.shared.statusBarFrame.size.height
+        let navBarHeight = self.folioReader.readerCenter?.navigationController?.navigationBar.frame.size.height ?? CGFloat(0)
+        let navTotal = self.readerConfig.shouldHideNavigationOnTap ? 0 : statusbarHeight + navBarHeight
+        let paddingTop: CGFloat = 20
+        let paddingBottom: CGFloat = 30
+
+        return CGRect(
+            x: baseFrame.origin.x,
+            y: self.readerConfig.isDirection(baseFrame.origin.y + navTotal, baseFrame.origin.y + navTotal + paddingTop, baseFrame.origin.y + navTotal),
+            width: baseFrame.width,
+            height: self.readerConfig.isDirection(baseFrame.height - navTotal, baseFrame.height - navTotal - paddingTop - paddingBottom, baseFrame.height - navTotal)
+        )
+             }
+
 
     func webViewFrame() -> CGRect {
         let baseFrame = safeAreaLayoutGuide.layoutFrame

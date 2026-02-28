@@ -171,6 +171,8 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         // Prevent content from shifting when navigation bar appears/disappears
         edgesForExtendedLayout = .all
         extendedLayoutIncludesOpaqueBars = true
+        automaticallyAdjustsScrollViewInsets = false
+
 
         screenBounds = self.getScreenBounds()
 
@@ -418,7 +420,10 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         changePageWith(page: pageNumber)
         currentPage?.webView?.removeFromSuperview()
         currentPage?.webView = nil
-        _ = configure(readerPageCell: currentPage, atIndexPath: IndexPath(row: pageNumber-1, section: 0))
+        //_ = configure(readerPageCell: currentPage, atIndexPath: IndexPath(row: pageNumber-1, section: 0))
+        let indexPath = IndexPath(row: pageNumber-1, section: 0)
+        let configuredCell = configure(readerPageCell: currentPage, atIndexPath: indexPath)
+
         delay(0.5) {
             self.fixPageOffset(animated: false)
             self.collectionView.isHidden = false
@@ -466,6 +471,14 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
             }
         })
         self.navigationController?.setNavigationBarHidden(shouldHide, animated: true)
+        
+        // Update WebView content insets for all visible pages after navigation bar state changes
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.26) {
+            for case let cell as FolioReaderPage in self.collectionView.visibleCells {
+                cell.layoutIfNeeded()
+            }
+        }
+
     }
 
     // MARK: UICollectionViewDataSource
