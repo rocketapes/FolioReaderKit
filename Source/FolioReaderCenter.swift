@@ -123,7 +123,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         guard let readerContainer = readerContainer else { return FolioReader() }
         return readerContainer.folioReader
     }
-    
+
     // MARK: - Logging
     private let lifecycleLogger = FolioLogger(category: .lifecycle)
     private let lastReadLogger = FolioLogger(category: .lastRead)
@@ -354,9 +354,8 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         self.collectionView.reloadData()
         self.configureNavBarButtons()
         self.setCollectionViewProgressiveDirection()
-        
-        self.lastReadLogger.info("reloadData() - isFirstLoad=\(self.isFirstLoad), loadSavedPositionForCurrentBook=\(self.readerConfig.loadSavedPositionForCurrentBook)")
 
+        self.lastReadLogger.info("reloadData() - isFirstLoad=\(self.isFirstLoad), loadSavedPositionForCurrentBook=\(self.readerConfig.loadSavedPositionForCurrentBook)")
         if isFirstLoad,
            self.readerConfig.loadSavedPositionForCurrentBook {
             guard let lastRead = FolioLastRead.lastRead(from: self.rwBook?.id ?? 0),
@@ -469,13 +468,6 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         
         // Trigger navigation bar hide/show
         self.navigationController?.setNavigationBarHidden(shouldHide, animated: true)
-        
-        // Update WebView content insets for all visible pages after navigation bar state changes
-//        DispatchQueue.main.asyncAfter(deadline: .now() + 0.26) {
-//            for case let cell as FolioReaderPage in self.collectionView.visibleCells {
-//                cell.layoutIfNeeded()
-//            }
-//        }
     }
 
     // MARK: UICollectionViewDataSource
@@ -646,7 +638,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         // Update pages
         pagesForCurrentPage(currentPage)
         currentPage.refreshPageMode()
-        
+
         scrollScrubber?.setSliderVal()
 
         fixPageOffset(animated: true)
@@ -726,7 +718,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
             completion?()
             return
         }
-        
+
         scrollScrubber?.setSliderVal()
 
 //        if let readingTime = currentPage.webView?.js("getReadingTime()") {
@@ -1157,7 +1149,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
     @objc func shareChapter(_ sender: UIBarButtonItem) {
         guard let currentPage = currentPage else { return }
 
-           currentPage.webView?.js("getBodyText()") { chapterText in
+        currentPage.webView?.js("getBodyText()") { chapterText in
             guard let chapterText = chapterText else { return }
             let htmlText = chapterText.replacingOccurrences(of: "[\\n\\r]+", with: "<br />", options: .regularExpression)
             var subject = self.readerConfig.localizedShareChapterSubject
@@ -1408,7 +1400,6 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
                 self?.scrollScrubber?.scrollViewDidEndDecelerating(scrollView)
             }
         })
-
     }
 
     open func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
@@ -1648,7 +1639,7 @@ extension FolioReaderCenter: FolioReaderPageDelegate {
                     (self.currentPageNumber == lastRead.page + 1) {
                     self.lastReadLogger.info("pageDidLoad() - scrolling to last read position")
                     scrollToLastReadPosition(page: page, lastRead: lastRead)
-                }   else {
+                } else {
                     self.lastReadLogger.debug("pageDidLoad() - currentPageNumber=\(self.currentPageNumber) doesn't match lastRead.page+1, not scrolling")
                 }
             } else if (self.isScrolling == false && folioReader.needsRTLChange == true) {
