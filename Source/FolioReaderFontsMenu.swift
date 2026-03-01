@@ -22,6 +22,9 @@ public enum CommonJSResult {
     }
 }
 
+// MARK: - Logging
+private let fontsMenuLogger = FolioLogger(category: .fontsMenu)
+
 public enum FolioReaderFont: Int {
     case andada = 0
     case lato
@@ -315,7 +318,7 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
     func setupCloseButtonAccessibility() {
         
         guard menuView != nil else {
-            print("ERROR: menuView is nil!")
+            fontsMenuLogger.error("menuView is nil!")
             return
         }
         
@@ -360,14 +363,13 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
         } else if segmentView.tag == 2 {
             // Font change
             guard let newFont = FolioReaderFont(rawValue: index),
-                  newFont != self.folioReader.currentFont else { return }
+            newFont != self.folioReader.currentFont else { return }
             
             applyFontChange(newFont)
 
         } else if segmentView.tag == 3 {
             // Scroll direction change
             guard self.folioReader.currentScrollDirection != index else { return }
-            
             applyScrollDirectionChange(index)
         }
     }
@@ -381,8 +383,7 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
         // Update menu background immediately (synchronous)
         UIView.animate(withDuration: 0.6) {
             self.menuView.backgroundColor = self.folioReader.isNight(
-                self.readerConfig.nightModeMenuBackground,
-                UIColor.white
+            self.readerConfig.nightModeMenuBackground, UIColor.white
             )
         }
         
@@ -437,7 +438,7 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
     private func applyScrollDirectionChange(_ direction: Int) {
         self.folioReader.currentScrollDirection = direction
         // Info: setScrollDirection handles the full reload internally
-        // Info: If we have time, we could apply the result handling etc. here, too.
+        // Info: We could apply the result handling etc. here, too.
     }
     
     /// Update all visible pages in the collection view, not just currentPage
@@ -450,7 +451,7 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
             // Only update if WebView is loaded and ready
             guard let webView = page.webView,
                   !webView.isLoading else {
-                print("⚠️ Skipping page \(page.pageNumber ?? 0) - WebView not ready")
+                print("Skipping page \(page.pageNumber ?? 0) - WebView not ready.")
                 continue
             }
             

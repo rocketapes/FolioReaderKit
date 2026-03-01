@@ -12,6 +12,9 @@ import MenuItemKit
 import JSQWebViewController
 import WebKit
 
+// MARK: - Logging
+private let navigationLogger = FolioLogger(category: .navigation)
+
 /// Protocol which is used from `FolioReaderPage`s.
 @objc public protocol FolioReaderPageDelegate: class {
 
@@ -77,8 +80,6 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
         self.readerContainer = FolioReaderContainer(withConfig: FolioReaderConfig(), rwBook: nil, folioReader: FolioReader(), epubPath: "")
         super.init(frame: frame)
         self.backgroundColor = UIColor.clear
-        
-        //webView?.frame = webViewFrame()
 
         NotificationCenter.default.addObserver(self, selector: #selector(refreshPageMode), name: NSNotification.Name(rawValue: "needRefreshPageMode"), object: nil)
         
@@ -99,7 +100,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
             webView?.backgroundColor = .clear
             webView?.isOpaque = false
             
-            // Apply safe area insets to scroll view content inset instead of changing frame
+            // Do not adjust the scrollview insets.
             if #available(iOS 11.0, *) {
                 webView?.scrollView.contentInsetAdjustmentBehavior = .never
             }
@@ -123,6 +124,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
         tapGestureRecognizer.delegate = self
         webView?.addGestureRecognizer(tapGestureRecognizer)
         
+        // Apply safe area.
         safeFrame = safeAreaLayoutGuide.layoutFrame
         
         //IID listen to UIMenue hide notification
@@ -421,7 +423,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
             decisionHandler(WKNavigationActionPolicy.allow)
             return
         } else if scheme == "mailto" {
-            print("Email")
+            navigationLogger.debug("Email link detected")
             decisionHandler(WKNavigationActionPolicy.allow)
             return
         } else if url.absoluteString != "about:blank" && scheme.contains("http") && navigationAction.navigationType == .linkActivated {

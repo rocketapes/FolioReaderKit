@@ -1076,8 +1076,7 @@ function markSearchResult(searchQuery, occurrenceInChapter, horizontal) {
     }
     new Mark(document.body).mark(searchQuery, {
             'separateWordSearch': false,
-            'acrossElements': true,
-                                 
+            'acrossElements': true
             });
     var results = document.getElementsByTagName("markJS-inner");
     var ignoresItem = [];
@@ -1232,5 +1231,3 @@ function elementIsTableTagName(elem) {
     }
     return false
 }
-
-

@@ -123,6 +123,12 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         guard let readerContainer = readerContainer else { return FolioReader() }
         return readerContainer.folioReader
     }
+    
+    // MARK: - Logging
+    private let lifecycleLogger = FolioLogger(category: .lifecycle)
+    private let lastReadLogger = FolioLogger(category: .lastRead)
+    private let navigationLogger = FolioLogger(category: .navigation)
+    private let contentLogger = FolioLogger(category: .contentLoading)
 
     // MARK: - Init
 
@@ -348,17 +354,19 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         self.collectionView.reloadData()
         self.configureNavBarButtons()
         self.setCollectionViewProgressiveDirection()
+        
+        self.lastReadLogger.info("reloadData() - isFirstLoad=\(self.isFirstLoad), loadSavedPositionForCurrentBook=\(self.readerConfig.loadSavedPositionForCurrentBook)")
 
         if isFirstLoad,
            self.readerConfig.loadSavedPositionForCurrentBook {
             guard let lastRead = FolioLastRead.lastRead(from: self.rwBook?.id ?? 0),
                 lastRead.page >= 0 else {
-                print("[LastRead:RESTORE] No valid lastRead found for bookId=\(self.rwBook?.id ?? 0), defaulting to page 1")
+                self.lastReadLogger.info("reloadData() - No valid lastRead found, starting at page 1")
                 self.currentPageNumber = 1
                 return
             }
             let pageNumber = lastRead.page + 1
-            print("[LastRead:RESTORE] bookId=\(lastRead.bookId), restoring to page=\(pageNumber) (index=\(lastRead.page)), offsetX=\(lastRead.pageOffsetX), offsetY=\(lastRead.pageOffsetY), hasRangy=\(lastRead.position != nil), filePath=\(lastRead.filePath ?? "nil")")
+            self.lastReadLogger.info("reloadData() - Restoring to page \(pageNumber) (lastRead.page=\(lastRead.page))")
 //            guard let position = folioReader.savedPositionForCurrentBook, let pageNumber = position["pageNumber"] as? Int, pageNumber > 0 else {
 //                self.currentPageNumber = 1
 //                return
@@ -461,6 +469,13 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         
         // Trigger navigation bar hide/show
         self.navigationController?.setNavigationBarHidden(shouldHide, animated: true)
+        
+        // Update WebView content insets for all visible pages after navigation bar state changes
+//        DispatchQueue.main.asyncAfter(deadline: .now() + 0.26) {
+//            for case let cell as FolioReaderPage in self.collectionView.visibleCells {
+//                cell.layoutIfNeeded()
+//            }
+//        }
     }
 
     // MARK: UICollectionViewDataSource
@@ -631,6 +646,8 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         // Update pages
         pagesForCurrentPage(currentPage)
         currentPage.refreshPageMode()
+        
+        scrollScrubber?.setSliderVal()
 
         fixPageOffset(animated: true)
     }
@@ -709,6 +726,8 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
             completion?()
             return
         }
+        
+        scrollScrubber?.setSliderVal()
 
 //        if let readingTime = currentPage.webView?.js("getReadingTime()") {
 //            pageIndicatorView?.totalMinutes = Int(readingTime)!
@@ -809,7 +828,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
     
     open func changePageWith(page: Int, searchResult: FolioSearchResult, animated: Bool = false) {
         guard page < totalPages else {
-            print("Failed to load book because the requested resource is missing.")
+            self.navigationLogger.error("Failed to load book because the requested resource is missing")
             return
         }
         // Scroll to a result in current page
@@ -856,7 +875,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
 
     open func changePageWith(indexPath: IndexPath, animated: Bool = false, completion: (() -> Void)? = nil) {
         guard indexPathIsValid(indexPath) else {
-            print("ERROR: Attempt to scroll to invalid index path")
+            self.navigationLogger.error("Attempt to scroll to invalid index path")
             completion?()
             return
         }
@@ -893,14 +912,12 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
     }
 
     public func changePageToNext(_ completion: (() -> Void)? = nil) {
-        // Note: Don't save here - this is sequential reading, save happens on close()
         changePageWith(page: self.nextPageNumber, animated: true) { () -> Void in
             completion?()
         }
     }
 
     public func changePageToPrevious(_ completion: (() -> Void)? = nil) {
-        // Note: Don't save here - this is sequential reading, save happens on close()
         changePageWith(page: self.previousPageNumber, animated: true) { () -> Void in
             completion?()
         }
@@ -917,7 +934,6 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
                 return
         }
 
-        // Note: Don't save here - this is sequential reading, save happens on close()
         let cellSize = cell.frame.size
         let contentOffsetX = contentOffset.x + cellSize.width
 
@@ -950,7 +966,6 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
                 return
         }
 
-        // Note: Don't save here - this is sequential reading, save happens on close()
         let cellSize = cell.frame.size
         let contentOffsetX = contentOffset.x - cellSize.width
 
@@ -1000,7 +1015,6 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
                 return
         }
 
-        // Note: Don't save here - this is sequential reading, save happens on close()
         let cellSize = cell.frame.size
         var contentOffsetX: CGFloat = 0.0
 
@@ -1570,50 +1584,46 @@ extension FolioReaderCenter: FolioReaderPageDelegate {
     }
     
     private func scrollToLastReadPosition(page: FolioReaderPage, lastRead: FolioLastRead) {
-        // Analyze available restore methods
-        // Note: offset 0,0 IS valid if we have a filePath (indicates local save was made)
+        
+        self.lastReadLogger.debug("scrollToLastReadPosition() - bookId=\(lastRead.bookId), page=\(lastRead.page), subPage=\(lastRead.subPage), offsetX=\(lastRead.pageOffsetX), offsetY=\(lastRead.pageOffsetY)")
+
+        // offset 0,0 IS valid if we have a filePath.
         let hasLocalSave = lastRead.filePath != nil && !lastRead.filePath!.isEmpty
         let hasNonZeroOffset = lastRead.pageOffsetX > 0 || lastRead.pageOffsetY > 0
-        let hasOffset = hasLocalSave || hasNonZeroOffset  // filePath presence indicates offset was explicitly saved
+        let hasOffset = hasLocalSave || hasNonZeroOffset  // we have a filepath.
         let hasRangyPosition = lastRead.position != nil && !lastRead.position!.isEmpty
-        let rangyId = lastRead.rangyId  // This will log extraction attempt
+        let rangyId = lastRead.rangyId
         let hasValidRangy = hasRangyPosition && rangyId != nil
 
-        // Check if local offset can be used (requires matching settings)
+        // Check if local offset can be used (requires matching settings).
         let fontSizeMatch = self.folioReader.currentFontSize.rawValue == lastRead.fontSize
         let orientationMatch = self.readerConfig.scrollDirection.isVertical == lastRead.isVertical
         let landscapeMatch = UIDevice.current.orientation.isLandscape == lastRead.isLandscape
         let canUseLocalOffset = hasOffset && fontSizeMatch && orientationMatch && landscapeMatch
 
-        print("[LastRead:SCROLL] ===== RESTORE ANALYSIS =====")
-        print("[LastRead:SCROLL] bookId=\(lastRead.bookId), page=\(lastRead.page)")
-        print("[LastRead:SCROLL] Available methods: localOffset=\(hasOffset) (hasLocalSave=\(hasLocalSave), hasNonZeroOffset=\(hasNonZeroOffset)), rangyPosition=\(hasRangyPosition), validRangyId=\(hasValidRangy)")
-        print("[LastRead:SCROLL] Offset values: X=\(lastRead.pageOffsetX), Y=\(lastRead.pageOffsetY), filePath=\(lastRead.filePath ?? "nil")")
-        print("[LastRead:SCROLL] Settings match: fontSize=\(fontSizeMatch) (current=\(self.folioReader.currentFontSize.rawValue), saved=\(lastRead.fontSize)), orientation=\(orientationMatch), landscape=\(landscapeMatch)")
-        print("[LastRead:SCROLL] canUseLocalOffset=\(canUseLocalOffset)")
-
-        // Priority 1: Local offset (most accurate when settings match)
+        // Priority 1: Local offset (most accurate when settings match) -> can fail
         if canUseLocalOffset {
             let pageOffset = self.readerConfig.isDirection(lastRead.pageOffsetY, lastRead.pageOffsetX, lastRead.pageOffsetY)
-            print("[LastRead:SCROLL] ✅ USING: Local offset (\(pageOffset)) - settings match, most accurate")
+            self.lastReadLogger.debug("scrollToLastReadPosition() - using local offset: \(pageOffset)")
             page.scrollPageToOffset(pageOffset, animated: false)
             return
         }
 
-        // Priority 2: Rangy position (works across font size changes if valid)
-        if hasRangyPosition, let validRangyId = rangyId {
+        // Priority 2: Rangy position (works across font size changes)
+        if hasRangyPosition, let validRangyId = rangyId, let positionString = lastRead.position {
             if !canUseLocalOffset && hasOffset {
-                print("[LastRead:SCROLL] ⚠️ FALLBACK: Local offset unusable (settings changed), trying rangy")
+                self.lastReadLogger.debug("FALLBACK: Local offset unusable (settings changed)")
             }
-            print("[LastRead:SCROLL] ✅ USING: Rangy position (id=\(validRangyId)) - text-based restore")
-            page.webView?.js("setLastRead('\(lastRead.position!)')")  { _ in }
+            self.lastReadLogger.debug("Rangy position (id=\(validRangyId)) - text-based restore")
+            page.webView?.js("setLastRead('\(positionString)')")  { _ in }
             page.scrollTo(validRangyId, animated: false, verticalInset: false)
             return
         }
 
-        // Priority 3: Fallback to raw offset (approximate when settings differ)
+        // Priority 3: Fallback to offset
         if hasOffset {
             let pageOffset = self.readerConfig.isDirection(lastRead.pageOffsetY, lastRead.pageOffsetX, lastRead.pageOffsetY)
+            // Help to find out what went wrong.
             let reasons = [
                 !fontSizeMatch ? "fontSize changed" : nil,
                 !orientationMatch ? "scrollDirection changed" : nil,
@@ -1621,22 +1631,25 @@ extension FolioReaderCenter: FolioReaderPageDelegate {
                 hasRangyPosition && rangyId == nil ? "rangy invalid" : nil,
                 !hasRangyPosition ? "no rangy saved" : nil
             ].compactMap { $0 }.joined(separator: ", ")
-            print("[LastRead:SCROLL] ⚠️ FALLBACK: Raw offset (\(pageOffset)) - \(reasons)")
+
+            self.lastReadLogger.debug("Fallback - Raw offset (\(pageOffset)) - \(reasons)")
             page.scrollPageToOffset(pageOffset, animated: false)
             return
         }
-
-        print("[LastRead:SCROLL] ❌ NO RESTORE: No position data available, staying at page top")
     }
     
     public func pageDidLoad(_ page: FolioReaderPage) {
+        self.lifecycleLogger.debug("pageDidLoad() - pageNumber=\(page.pageNumber), isFirstLoad=\(self.isFirstLoad)")
         if self.readerConfig.loadSavedPositionForCurrentBook {
             if isFirstLoad {
                 updateCurrentPage(page)
                 isFirstLoad = false
                 if let lastRead = FolioLastRead.lastRead(from: self.readerContainer?.rwBook?.id ?? 0),
                     (self.currentPageNumber == lastRead.page + 1) {
+                    self.lastReadLogger.info("pageDidLoad() - scrolling to last read position")
                     scrollToLastReadPosition(page: page, lastRead: lastRead)
+                }   else {
+                    self.lastReadLogger.debug("pageDidLoad() - currentPageNumber=\(self.currentPageNumber) doesn't match lastRead.page+1, not scrolling")
                 }
             } else if (self.isScrolling == false && folioReader.needsRTLChange == true) {
                 page.scrollPageToBottom()
@@ -1696,9 +1709,6 @@ extension FolioReaderCenter: FolioReaderPageDelegate {
 extension FolioReaderCenter: FolioReaderChapterListDelegate {
     
     func chapterList(_ chapterList: FolioReaderChapterList, didSelectRowAtIndexPath indexPath: IndexPath, withTocReference reference: FRTocReference) {
-        // User is navigating to a new chapter - the new position will be tracked after navigation
-        print("[LastRead:TOC_NAV] Navigating to chapter: \(reference.title ?? "unknown")")
-
         //IID
         if let bookTitle = book.title {
         NotificationCenter.default.post(name: Notification.Name("GoogleAnalyticsEvent"),
@@ -1805,4 +1815,3 @@ extension FolioReaderCenter: FolioReaderHighlightListDelegate {
         self.delegate?.didSelectHighlight?(highlight: highlight, center: self)
     }
 }
-
