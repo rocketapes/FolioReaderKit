@@ -99,14 +99,20 @@ function setupRangy() {
     
 };
 
-
-
-
 document.addEventListener("DOMContentLoaded", function(event) {
-//    var lnk = document.getElementsByClassName("lnk");
-//    for (var i=0; i<lnk.length; i++) {
-//        lnk[i].setAttribute("onclick","return callVerseURL(this);");
-//    }
+    // Force all fonts to load immediately.
+    var preloader = document.createElement('div');
+    preloader.style.cssText = 'position:absolute;left:-9999px;top:-9999px;opacity:0;pointer-events:none;';
+    preloader.innerHTML = '<span style="font-family:Andada">.</span><span style="font-family:Lato">.</span><span style="font-family:Lora">.</span><span style="font-family:Raleway">.</span>';
+    document.body.appendChild(preloader);
+    
+    // Also use Font Loading API if available.
+    if (document.fonts && document.fonts.load) {
+        document.fonts.load('1em Andada');
+        document.fonts.load('1em Lato');
+        document.fonts.load('1em Lora');
+        document.fonts.load('1em Raleway');
+    }
 });
 
 // Generate a GUID
@@ -146,37 +152,52 @@ function removeClass(ele,cls) {
 
 // Font name class
 function setFontName(cls) {
-    var elm = document.documentElement;
-    removeClass(elm, "andada");
-    removeClass(elm, "lato");
-    removeClass(elm, "lora");
-    removeClass(elm, "raleway");
-    addClass(elm, cls);
+    try {
+        var elm = document.documentElement;
+        removeClass(elm, "andada");
+        removeClass(elm, "lato");
+        removeClass(elm, "lora");
+        removeClass(elm, "raleway");
+        addClass(elm, cls);
+        return 'ok';
+    } catch (e) {
+        return 'error:' + (e && e.message ? e.message : String(e));
+    }
 }
 
 // Toggle night mode
 function nightMode(enable) {
-    var elm = document.documentElement;
-    if(enable) {
-        addClass(elm, "nightMode");
-    } else {
-        removeClass(elm, "nightMode");
+    try {
+        var elm = document.documentElement;
+        if(enable) {
+            addClass(elm, "nightMode");
+        } else {
+            removeClass(elm, "nightMode");
+        }
+        return 'ok';
+    } catch (e) {
+        return 'error:' + (e && e.message ? e.message : String(e));
     }
 }
 
 // Set font size
 function setFontSize(cls) {
-    var elm = document.documentElement;
-    removeClass(elm, "textSizeOne");
-    removeClass(elm, "textSizeTwo");
-    removeClass(elm, "textSizeThree");
-    removeClass(elm, "textSizeFour");
-    removeClass(elm, "textSizeFive");
-    addClass(elm, cls);
+    try {
+        var elm = document.documentElement;
+        removeClass(elm, "textSizeOne");
+        removeClass(elm, "textSizeTwo");
+        removeClass(elm, "textSizeThree");
+        removeClass(elm, "textSizeFour");
+        removeClass(elm, "textSizeFive");
+        addClass(elm, cls);
+        return 'ok';
+    } catch (e) {
+        return 'error:' + (e && e.message ? e.message : String(e));
+    }
 }
 
 /*
- *	Native bridge Highlight text
+ *    Native bridge Highlight text
  */
 function highlightString(style, bookId, pageIndex) {
     
@@ -339,8 +360,8 @@ var getRectForSelectedText = function(elm) {
 // Method that call that a hightlight was clicked
 // with URL scheme and rect informations
 var callHighlightURL = function(elm) {
-	event.stopPropagation();
-	var URLBase = "highlight://";
+    event.stopPropagation();
+    var URLBase = "highlight://";
     var currentHighlightRect = getRectForSelectedText(elm);
    // thisHighlight = elm;
     
@@ -813,36 +834,36 @@ function wrappingSentencesWithinPTags(){
 // Class based onClick listener
 
 function addClassBasedOnClickListener(schemeName, querySelector, attributeName, selectAll) {
-	if (selectAll) {
-		// Get all elements with the given query selector
-		var elements = document.querySelectorAll(querySelector);
-		for (elementIndex = 0; elementIndex < elements.length; elementIndex++) {
-			var element = elements[elementIndex];
-			addClassBasedOnClickListenerToElement(element, schemeName, attributeName);
-		}
-	} else {
-		// Get the first element with the given query selector
-		var element = document.querySelector(querySelector);
-		addClassBasedOnClickListenerToElement(element, schemeName, attributeName);
-	}
+    if (selectAll) {
+        // Get all elements with the given query selector
+        var elements = document.querySelectorAll(querySelector);
+        for (elementIndex = 0; elementIndex < elements.length; elementIndex++) {
+            var element = elements[elementIndex];
+            addClassBasedOnClickListenerToElement(element, schemeName, attributeName);
+        }
+    } else {
+        // Get the first element with the given query selector
+        var element = document.querySelector(querySelector);
+        addClassBasedOnClickListenerToElement(element, schemeName, attributeName);
+    }
 }
 
 function addClassBasedOnClickListenerToElement(element, schemeName, attributeName) {
-	// Get the content from the given attribute name
-	var attributeContent = element.getAttribute(attributeName);
-	// Add the on click logic
-	element.setAttribute("onclick", "onClassBasedListenerClick(\"" + schemeName + "\", \"" + encodeURIComponent(attributeContent) + "\");");
+    // Get the content from the given attribute name
+    var attributeContent = element.getAttribute(attributeName);
+    // Add the on click logic
+    element.setAttribute("onclick", "onClassBasedListenerClick(\"" + schemeName + "\", \"" + encodeURIComponent(attributeContent) + "\");");
 }
 
 var onClassBasedListenerClick = function(schemeName, attributeContent) {
-	// Prevent the browser from performing the default on click behavior
-	event.preventDefault();
-	// Don't pass the click event to other elemtents
-	event.stopPropagation();
-	// Create parameters containing the click position inside the web view.
-	var positionParameterString = "/clientX=" + event.clientX + "&clientY=" + event.clientY;
-	// Set the custom link URL to the event
-	window.location = schemeName + "://" + attributeContent + positionParameterString;
+    // Prevent the browser from performing the default on click behavior
+    event.preventDefault();
+    // Don't pass the click event to other elemtents
+    event.stopPropagation();
+    // Create parameters containing the click position inside the web view.
+    var positionParameterString = "/clientX=" + event.clientX + "&clientY=" + event.clientY;
+    // Set the custom link URL to the event
+    window.location = schemeName + "://" + attributeContent + positionParameterString;
 }
 
 function createSelectionFromPoint(startX, startY, endX, endY) {
@@ -1055,7 +1076,7 @@ function markSearchResult(searchQuery, occurrenceInChapter, horizontal) {
     }
     new Mark(document.body).mark(searchQuery, {
             'separateWordSearch': false,
-            'acrossElements': true
+            'acrossElements': true,
                                  
             });
     var results = document.getElementsByTagName("markJS-inner");
@@ -1211,3 +1232,5 @@ function elementIsTableTagName(elem) {
     }
     return false
 }
+
+

@@ -10,9 +10,6 @@ import WebKit
 
 public typealias JSCallback = ((String?) ->())
 
-// MARK: - Logging
-private let highlightsLogger = FolioLogger(category: .highlights)
-
 /// The custom WebView used in each page
 open class FolioReaderWebView: WKWebView {
     var isColors = false
@@ -45,6 +42,7 @@ open class FolioReaderWebView: WKWebView {
         // pass WKWebViewConfiguration to app to let the app set scheme handler, we use that to load css or images in streaming reading mode
         self.readerContainer?.readerConfig.fileDelegate?.setURLSchemeHandler( config: configuration)
         super.init(frame: frame, configuration: configuration)
+        //self.scrollView.isScrollEnabled = false
 
     }
 
@@ -206,9 +204,9 @@ open class FolioReaderWebView: WKWebView {
             highlight?.filePath = self.folioReader.readerCenter?.currentPage?.resource?.href
             completion(highlight)
             return
-
+            
         } catch {
-            highlightsLogger.error("Could not receive JSON from highlight creation")
+            print("Could not receive JSON")
         }
         }
         completion(nil)
@@ -218,14 +216,14 @@ open class FolioReaderWebView: WKWebView {
 
     @objc func highlight(_ sender: UIMenuController?) {
         addHighlight(sender) { highlight in
-        	highlight?.persist(withConfiguration: self.readerConfig)
+            highlight?.persist(withConfiguration: self.readerConfig)
         }
     }
     
     @objc func highlightWithNote(_ sender: UIMenuController?) {
         addHighlight(sender) { highlight in
-        	guard let highlight = highlight else { return }
-           	self.folioReader.readerCenter?.presentAddHighlightNote(highlight, edit: false)
+            guard let highlight = highlight else { return }
+               self.folioReader.readerCenter?.presentAddHighlightNote(highlight, edit: false)
         }
     }
     
@@ -233,14 +231,14 @@ open class FolioReaderWebView: WKWebView {
         js("currentHighlightId()") { highlightId in
             guard let highlightId = highlightId else { return }
             if let highlightNote = Highlight.getById(withConfiguration: self.readerConfig, highlightId: highlightId) {
-            	self.folioReader.readerCenter?.presentAddHighlightNote(highlightNote, edit: true)
-        	}
+                self.folioReader.readerCenter?.presentAddHighlightNote(highlightNote, edit: true)
+            }
         }
     }
 
     @objc func define(_ sender: UIMenuController?) {
         js("getSelectedText()") { selectedText in
-        	guard let selectedText = selectedText else { return }
+            guard let selectedText = selectedText else { return }
             self.setMenuVisible(false)
             self.clearTextSelection()
 
@@ -393,7 +391,12 @@ open class FolioReaderWebView: WKWebView {
     
     func setupScrollDirection() {
         switch self.readerConfig.scrollDirection {
-        case .vertical, .defaultVertical, .horizontalWithVerticalContent:
+        case .vertical, .defaultVertical:
+            scrollView.isPagingEnabled = true
+            cssOverflowProperty = "scroll"  // Use scroll, not -webkit-paged-y
+            scrollView.bounces = false
+            break
+        case .horizontalWithVerticalContent:
             scrollView.isPagingEnabled = false
             cssOverflowProperty = "scroll"
             scrollView.bounces = true
@@ -409,3 +412,4 @@ open class FolioReaderWebView: WKWebView {
         reload()
     }
 }
+
