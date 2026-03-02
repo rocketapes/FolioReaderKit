@@ -7,6 +7,20 @@
 //
 
 import UIKit
+import Foundation
+
+public enum CommonJSResult {
+    case ok
+    case error(String)
+    case unknown(String?)
+    
+    static func from(jsReturn value: String?) -> CommonJSResult {
+        guard let value = value else { return .unknown(nil) }
+        if value == "ok" { return .ok }
+        if value.hasPrefix("error:") { return .error(String(value.dropFirst(6))) }
+        return .unknown(value)
+    }
+}
 
 // MARK: - Logging
 private let fontsMenuLogger = FolioLogger(category: .fontsMenu)
@@ -84,6 +98,14 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
 
     fileprivate var readerConfig: FolioReaderConfig
     fileprivate var folioReader: FolioReader
+    
+    // Track pending operations to prevent race conditions
+    private var pendingOperations = 0
+    private let operationQueue = DispatchQueue(label: "com.folioreader.fontmenu", qos: .userInteractive)
+    
+    // Store the pending font size value for debouncing
+    private var pendingFontSizeValue: Int?
+    private var fontSizeDebounceTimer: Timer?
 
     init(folioReader: FolioReader, readerConfig: FolioReaderConfig) {
         self.readerConfig = readerConfig
@@ -294,7 +316,7 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
     }
 
     func setupCloseButtonAccessibility() {
-
+        
         guard menuView != nil else {
             fontsMenuLogger.error("menuView is nil!")
             return
@@ -332,43 +354,161 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
         guard (self.folioReader.readerCenter?.currentPage) != nil else { return }
 
         if segmentView.tag == 1 {
-            // Set night mode - the setter in FolioReaderKit handles all UI updates including menu background
-            self.folioReader.nightMode = Bool(index == 1)
-
-            // Update menu background to match (done outside the animation to be synchronous with the setter)
-            UIView.animate(withDuration: 0.6, animations: {
-                self.menuView.backgroundColor = (self.folioReader.nightMode ? self.readerConfig.nightModeMenuBackground : UIColor.white)
-            })
+            // Night mode change - synchronous UI update with async WebView updates
+            let newNightMode = (index == 1)
+            guard newNightMode != self.folioReader.nightMode else { return }
+            
+            applyNightModeChange(newNightMode)
 
         } else if segmentView.tag == 2 {
-            // Set current font - the setter in FolioReaderKit handles all page updates
-            self.folioReader.currentFont = FolioReaderFont(rawValue: index)!
+            // Font change
+            guard let newFont = FolioReaderFont(rawValue: index),
+            newFont != self.folioReader.currentFont else { return }
+            
+            applyFontChange(newFont)
 
-        }  else if segmentView.tag == 3 {
-
-            guard self.folioReader.currentScrollDirection != index else {
-                return
-            }
-
-            self.folioReader.currentScrollDirection = index
+        } else if segmentView.tag == 3 {
+            // Scroll direction change
+            guard self.folioReader.currentScrollDirection != index else { return }
+            applyScrollDirectionChange(index)
         }
+    }
+    
+    // MARK: - Robust Change Application
+    
+    private func applyNightModeChange(_ nightMode: Bool) {
+        // Update state first
+        self.folioReader.nightMode = nightMode
+        
+        // Update menu background immediately (synchronous)
+        UIView.animate(withDuration: 0.6) {
+            self.menuView.backgroundColor = self.folioReader.isNight(
+            self.readerConfig.nightModeMenuBackground, UIColor.white
+            )
+        }
+        
+        DispatchQueue.main.async {
+            self.updateAllVisiblePages { page in
+                page.webView?.js("nightMode(\(nightMode))") { result in
+                    switch CommonJSResult.from(jsReturn: result) {
+                    case .ok:
+                        print("Night Mode changed.")
+                        break
+                    case .error(let message):
+                        print("Night Mode JS error: \(message)")
+                    case .unknown(let returnValue):
+                        print("Font size JS returned unknown value: \(String(describing: returnValue))")
+                    }
+                }
+            }
+        }
+    }
+    
+    private func applyFontChange(_ font: FolioReaderFont) {
+        // Update state
+        self.folioReader.currentFont = font
+
+        DispatchQueue.main.async {
+            self.updateAllVisiblePages { page in
+                page.webView?.js("setFontName('\(font.cssIdentifier)')") { result in
+                    switch CommonJSResult.from(jsReturn: result) {
+                    case .ok:
+                        print("Font changed on page \(page.pageNumber ?? 0)")
+                        break
+                    case .error(let message):
+                        print("Font Change JS error for page \(page.pageNumber ?? 0): \(message)")
+                    case .unknown(let returnValue):
+                        print("Font Change JS returned unknown value for page \(page.pageNumber ?? 0): \(String(describing: returnValue))")
+                    }
+                }
+            }
+        }
+    }
+    
+    private func applyScrollDirectionChange(_ direction: Int) {
+        self.folioReader.currentScrollDirection = direction
+        // Info: setScrollDirection handles the full reload internally
+        // Info: We could apply the result handling etc. here, too.
+    }
+    
+    /// Update all visible pages in the collection view, not just currentPage
+    private func updateAllVisiblePages(_ updateBlock: @escaping (FolioReaderPage) -> Void) {
+        guard let readerCenter = self.folioReader.readerCenter else { return }
+        
+        let visibleCells = readerCenter.collectionView.visibleCells
+        
+        for case let page as FolioReaderPage in visibleCells {
+            // Only update if WebView is loaded and ready
+            guard let webView = page.webView,
+                  !webView.isLoading else {
+                print("Skipping page \(page.pageNumber ?? 0) - WebView not ready.")
+                continue
+            }
+            
+            updateBlock(page)
+        }
+        
+        // Also trigger UI refresh for page indicators etc.
+        readerCenter.pageIndicatorView?.reloadColors()
+        readerCenter.scrollScrubber?.reloadColors()
+        NotificationCenter.default.post(name: Notification.Name(rawValue: "needRefreshPageMode"), object: nil)
     }
     
     // MARK: - Font slider changed
     
     @objc func sliderValueChanged(_ sender: HADiscreteSlider) {
-        guard
-            (self.folioReader.readerCenter?.currentPage != nil),
-            let fontSize = FolioReaderFontSize(rawValue: Int(sender.value)) else {
-                return
+        let fontSizeValue = Int(sender.value)
+        
+        // Store the pending value
+        pendingFontSizeValue = fontSizeValue
+        
+        // Cancel any existing timer
+        fontSizeDebounceTimer?.invalidate()
+        
+        // Create a new timer to apply the change after a delay
+        fontSizeDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: false) { [weak self] _ in
+            self?.applyPendingFontSizeChange()
+        }
+    }
+    
+    private func applyPendingFontSizeChange() {
+        guard let fontSizeValue = pendingFontSizeValue,
+              let fontSize = FolioReaderFontSize(rawValue: fontSizeValue),
+              fontSize != self.folioReader.currentFontSize else {
+            return
         }
         
+        // Clear the pending value
+        pendingFontSizeValue = nil
+        
+        // Update state
         self.folioReader.currentFontSize = fontSize
+        
+        // Queue WebView updates
+        DispatchQueue.main.async {
+            self.updateAllVisiblePages { page in
+                page.webView?.js("setFontSize('\(fontSize.cssIdentifier)')") { result in
+                    switch CommonJSResult.from(jsReturn: result) {
+                    case .ok:
+                        print("Font size changed on page \(page.pageNumber ?? 0)")
+                        break
+                    case .error(let message):
+                        print("Font size JS error for page \(page.pageNumber ?? 0): \(message)")
+                    case .unknown(let returnValue):
+                        print("Font size JS returned unknown value for page \(page.pageNumber ?? 0): \(String(describing: returnValue))")
+                    }
+                }
+            }
+        }
     }
     
     // MARK: - Gestures
     
     @objc func closeFontMenuTapGesture() {
+        // Cancel any pending font size changes
+        fontSizeDebounceTimer?.invalidate()
+        fontSizeDebounceTimer = nil
+        
         dismiss()
         
         if (self.readerConfig.shouldHideNavigationOnTap == false) {
@@ -389,3 +529,4 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
         return false
     }
 }
+
