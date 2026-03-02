@@ -52,6 +52,11 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     fileprivate var colorView: UIView!
     fileprivate var shouldShowBar = true
     fileprivate var menuIsVisible = false
+    fileprivate var safeFrame = CGRect.zero
+    
+    // Flag to track the modal view presentation.
+    fileprivate var isModalPresented = false
+    fileprivate var savedScrollPosition: CGPoint?
 
     fileprivate var readerConfig: FolioReaderConfig {
         guard let readerContainer = readerContainer else { return FolioReaderConfig() }
@@ -77,6 +82,10 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
         self.backgroundColor = UIColor.clear
 
         NotificationCenter.default.addObserver(self, selector: #selector(refreshPageMode), name: NSNotification.Name(rawValue: "needRefreshPageMode"), object: nil)
+        
+        // Add observer for modal presentation
+        NotificationCenter.default.addObserver(self, selector: #selector(modalWillPresent), name: NSNotification.Name("ShowNonInlineContent"), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(modalDidDismiss), name: NSNotification.Name("DidDismissNonInlineContent"), object: nil)
     }
 
     public func setup(withReaderContainer readerContainer: FolioReaderContainer) {
@@ -89,6 +98,13 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
             webView?.scrollView.showsVerticalScrollIndicator = false
             webView?.scrollView.showsHorizontalScrollIndicator = false
             webView?.backgroundColor = .clear
+            webView?.isOpaque = false
+            
+            // Do not adjust the scrollview insets.
+            if #available(iOS 11.0, *) {
+                webView?.scrollView.contentInsetAdjustmentBehavior = .never
+            }
+            
             self.contentView.addSubview(webView!)
         }
         webView?.navigationDelegate = self
@@ -108,9 +124,31 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
         tapGestureRecognizer.delegate = self
         webView?.addGestureRecognizer(tapGestureRecognizer)
         
+        // Apply safe area.
+        safeFrame = safeAreaLayoutGuide.layoutFrame
+        
         //IID listen to UIMenue hide notification
         NotificationCenter.default.addObserver(self, selector: #selector(menuDidHide), name: .UIMenuControllerDidHideMenu, object: nil)
 
+    }
+    
+    // MARK: - Modal presentation tracking
+    
+    @objc func modalWillPresent() {
+        isModalPresented = true
+        // Save current scroll position
+        savedScrollPosition = webView?.scrollView.contentOffset
+    }
+    
+    @objc func modalDidDismiss() {
+        isModalPresented = false
+        
+        // Restore scroll position after a brief delay to ensure view hierarchy is stable
+        if let savedPosition = savedScrollPosition {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                self?.webView?.scrollView.setContentOffset(savedPosition, animated: false)
+            }
+        }
     }
     
     // IID
@@ -127,35 +165,33 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
         webView?.scrollView.delegate = nil
         webView?.navigationDelegate = nil
         NotificationCenter.default.removeObserver(self)
+        
+        // Remove the modal notifications observers.
+        NotificationCenter.default.removeObserver(self, name: NSNotification.Name("ShowNonInlineContent"), object: nil)
+        NotificationCenter.default.removeObserver(self, name: NSNotification.Name("DidDismissNonInlineContent"), object: nil)
     }
 
     override open func layoutSubviews() {
         super.layoutSubviews()
 
+        // Don't trigger layout changes if modal is presented. Images may disappear.
+        guard !isModalPresented else { return }
+        
         webView?.setupScrollDirection()
         webView?.frame = webViewFrame()
     }
 
     func webViewFrame() -> CGRect {
-        let baseFrame = safeAreaLayoutGuide.layoutFrame
-        guard (self.readerConfig.hideBars == false) else {
-            return baseFrame
-        }
 
-        let statusbarHeight = UIApplication.shared.statusBarFrame.size.height
-        let navBarHeight = self.folioReader.readerCenter?.navigationController?.navigationBar.frame.size.height ?? CGFloat(0)
-        let navTotal = self.readerConfig.shouldHideNavigationOnTap ? 0 : statusbarHeight + navBarHeight
-        let paddingTop: CGFloat = 20
-        let paddingBottom: CGFloat = 30
-
+        // use safe area to avoid status bar and notch
         return CGRect(
-            x: baseFrame.origin.x,
-            y: self.readerConfig.isDirection(baseFrame.origin.y + navTotal, baseFrame.origin.y + navTotal + paddingTop, baseFrame.origin.y + navTotal),
-            width: baseFrame.width,
-            height: self.readerConfig.isDirection(baseFrame.height - navTotal, baseFrame.height - navTotal - paddingTop - paddingBottom, baseFrame.height - navTotal)
+            x: bounds.origin.x,
+            y: safeFrame.origin.y,
+            width: bounds.width,
+            height: safeFrame.height
         )
     }
-    
+        
     func loadHTMLString(_ htmlContent: String!, baseURL: URL!) {
         // Insert the stored highlights to the HTML
         let tempHtmlContent = htmlContentWithInsertHighlights(htmlContent)
@@ -309,7 +345,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
             webView.createMenu(options: true)
             webView.setMenuVisible(true, andRect: rect)
             menuIsVisible = true
-			decisionHandler(WKNavigationActionPolicy.cancel)
+            decisionHandler(WKNavigationActionPolicy.cancel)
             return
         } else if scheme == "play-audio" {
             guard let decoded = url.absoluteString.removingPercentEncoding
@@ -384,7 +420,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
                 decisionHandler(WKNavigationActionPolicy.cancel)
                 return
             }
-			decisionHandler(WKNavigationActionPolicy.allow)
+            decisionHandler(WKNavigationActionPolicy.allow)
             return
         } else if scheme == "mailto" {
             navigationLogger.debug("Email link detected")
@@ -438,7 +474,7 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
                 return
             }
         }
-		decisionHandler(WKNavigationActionPolicy.allow)
+        decisionHandler(WKNavigationActionPolicy.allow)
         return
     }
 
@@ -578,18 +614,18 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     open func handleAnchor(_ anchor: String,  avoidBeginningAnchors: Bool, animated: Bool) {
         if !anchor.isEmpty {
             getAnchorOffset(anchor) { offset in
-          	  switch self.readerConfig.scrollDirection {
-         	   case .vertical, .defaultVertical:
+                switch self.readerConfig.scrollDirection {
+                case .vertical, .defaultVertical:
                     let isBeginning = (offset < self.frame.forDirection(withConfiguration: self.readerConfig) * 0.5)
 
-          	      if !avoidBeginningAnchors {
-           	         self.scrollPageToOffset(offset, animated: animated)
-           	     } else if avoidBeginningAnchors && !isBeginning {
-           	         self.scrollPageToOffset(offset, animated: animated)
-            	    }
-          	  case .horizontal, .horizontalWithVerticalContent:
-           	     self.scrollPageToOffset(offset, animated: animated)
-           	 }
+                    if !avoidBeginningAnchors {
+                        self.scrollPageToOffset(offset, animated: animated)
+                    } else if avoidBeginningAnchors && !isBeginning {
+                        self.scrollPageToOffset(offset, animated: animated)
+                    }
+                case .horizontal, .horizontalWithVerticalContent:
+                    self.scrollPageToOffset(offset, animated: animated)
+                }
             }
         }
     }
@@ -637,16 +673,16 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
 
         if !webView.isShare && !webView.isColors {
            // let semaphore = DispatchSemaphore(value: 0)
-     	    webView.js("getSelectedText()") { result in
-        	guard let result = result else { return  }
+             webView.js("getSelectedText()") { result in
+            guard let result = result else { return  }
             if result.count == 0 { return }
 
-      	  	if result.components(separatedBy: " ").count == 1 {
-            	webView.isOneWord = true
-       	     	webView.createMenu(options: false)
-       		 } else {
-       	    	 webView.isOneWord = false
-       		 	}
+                if result.components(separatedBy: " ").count == 1 {
+                webView.isOneWord = true
+                    webView.createMenu(options: false)
+                } else {
+                    webView.isOneWord = false
+                    }
               //  semaphore.signal()
             }
             //let _ = semaphore.wait(timeout: .now() + 2)
@@ -689,3 +725,4 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     }
     //END IID
 }
+

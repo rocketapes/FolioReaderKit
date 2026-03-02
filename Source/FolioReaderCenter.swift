@@ -465,6 +465,8 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
                 self.pageIndicatorView?.minutesLabel.alpha = shouldHide ? 0 : 1
             }
         })
+        
+        // Trigger navigation bar hide/show
         self.navigationController?.setNavigationBarHidden(shouldHide, animated: true)
     }
 
@@ -923,16 +925,16 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
                 completion?()
                 return
         }
-        
+
         let cellSize = cell.frame.size
         let contentOffsetX = contentOffset.x + cellSize.width
-        
+
         if contentOffsetX >= contentOffsetXLimit {
             changePageToNext(completion)
         } else {
             cell.scrollPageToOffset(contentOffsetX, animated: true)
         }
-        
+
         completion?()
     }
 
@@ -955,16 +957,16 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
                 completion?()
                 return
         }
-        
+
         let cellSize = cell.frame.size
         let contentOffsetX = contentOffset.x - cellSize.width
-        
+
         if contentOffsetX < 0 {
             changePageToPrevious(completion)
         } else {
             cell.scrollPageToOffset(contentOffsetX, animated: true)
         }
-        
+
         completion?()
     }
 
@@ -1004,22 +1006,22 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
                 completion?()
                 return
         }
-        
+
         let cellSize = cell.frame.size
         var contentOffsetX: CGFloat = 0.0
-        
+
         if contentSize.width > 0 && cellSize.width > 0 {
             contentOffsetX = (cellSize.width * CGFloat(to)) - cellSize.width
         }
-        
+
         if contentOffsetX > contentSize.width {
             contentOffsetX = contentSize.width - cellSize.width
         }
-        
+
         if contentOffsetX < 0 {
             contentOffsetX = 0
         }
-        
+
         UIView.animate(withDuration: animated ? 0.3 : 0, delay: 0, options: UIViewAnimationOptions(), animations: { () -> Void in
             cell.scrollPageToOffset(contentOffsetX, animated: animated)
         }) { (finished: Bool) -> Void in
@@ -1147,7 +1149,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
     @objc func shareChapter(_ sender: UIBarButtonItem) {
         guard let currentPage = currentPage else { return }
 
-       	currentPage.webView?.js("getBodyText()") { chapterText in
+        currentPage.webView?.js("getBodyText()") { chapterText in
             guard let chapterText = chapterText else { return }
             let htmlText = chapterText.replacingOccurrences(of: "[\\n\\r]+", with: "<br />", options: .regularExpression)
             var subject = self.readerConfig.localizedShareChapterSubject
@@ -1275,10 +1277,6 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
         recentlyScrolled = true
         pointNow = scrollView.contentOffset
 
-        if (scrollView is UICollectionView) {
-            scrollView.isUserInteractionEnabled = false
-        }
-        
         if let currentPage = currentPage {
             currentPage.webView?.createMenu(options: true)
             currentPage.webView?.setMenuVisible(false)
@@ -1369,11 +1367,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
     
     open func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
         self.isScrolling = false
-        
-        if (scrollView is UICollectionView) {
-            scrollView.isUserInteractionEnabled = true
-        }
-        
+
         // If web page is scroll from page n to page n-1, and it did finish load before
         // scrollViewDidEndDecelerating, keep track it
         let direction: ScrollDirection = self.folioReader.needsRTLChange ? .positive(withConfiguration: self.readerConfig) : .negative(withConfiguration: self.readerConfig)
@@ -1397,7 +1391,7 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
                 guard let instance = self else {
                     return
                 }
-                
+
                 if instance.totalPages > 0 {
                     instance.updateCurrentPage()
                     instance.delegate?.pageItemChanged?(instance.getCurrentPageItemNumber(), center: instance)
@@ -1406,7 +1400,6 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
                 self?.scrollScrubber?.scrollViewDidEndDecelerating(scrollView)
             }
         })
-        
     }
 
     open func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
@@ -1582,45 +1575,58 @@ extension FolioReaderCenter: FolioReaderPageDelegate {
     }
     
     private func scrollToLastReadPosition(page: FolioReaderPage, lastRead: FolioLastRead) {
+        
         self.lastReadLogger.debug("scrollToLastReadPosition() - bookId=\(lastRead.bookId), page=\(lastRead.page), subPage=\(lastRead.subPage), offsetX=\(lastRead.pageOffsetX), offsetY=\(lastRead.pageOffsetY)")
-        // should scroll to last offset if user don't change font size, orientation
-        // and scroll direction
-        if shouldScrollToLastReadByLocalOffset(lastRead: lastRead) {
+
+        // offset 0,0 IS valid if we have a filePath.
+        let hasLocalSave = lastRead.filePath != nil && !lastRead.filePath!.isEmpty
+        let hasNonZeroOffset = lastRead.pageOffsetX > 0 || lastRead.pageOffsetY > 0
+        let hasOffset = hasLocalSave || hasNonZeroOffset  // we have a filepath.
+        let hasRangyPosition = lastRead.position != nil && !lastRead.position!.isEmpty
+        let rangyId = lastRead.rangyId
+        let hasValidRangy = hasRangyPosition && rangyId != nil
+
+        // Check if local offset can be used (requires matching settings).
+        let fontSizeMatch = self.folioReader.currentFontSize.rawValue == lastRead.fontSize
+        let orientationMatch = self.readerConfig.scrollDirection.isVertical == lastRead.isVertical
+        let landscapeMatch = UIDevice.current.orientation.isLandscape == lastRead.isLandscape
+        let canUseLocalOffset = hasOffset && fontSizeMatch && orientationMatch && landscapeMatch
+
+        // Priority 1: Local offset (most accurate when settings match) -> can fail
+        if canUseLocalOffset {
             let pageOffset = self.readerConfig.isDirection(lastRead.pageOffsetY, lastRead.pageOffsetX, lastRead.pageOffsetY)
             self.lastReadLogger.debug("scrollToLastReadPosition() - using local offset: \(pageOffset)")
             page.scrollPageToOffset(pageOffset, animated: false)
             return
         }
-        // then check rangy - only use if rangyId can be extracted
-        if let position = lastRead.position, !position.isEmpty {
-            if let rangyId = lastRead.rangyId {
-                self.lastReadLogger.debug("scrollToLastReadPosition() - using rangy position: \(rangyId)")
-                page.webView?.js("setLastRead('\(position)')")  { _ in }
-                page.scrollTo(rangyId, animated: false, verticalInset: false)
-                return
-            } else {
-                self.lastReadLogger.debug("scrollToLastReadPosition() - position exists but rangyId is nil, continuing to fallbacks")
+
+        // Priority 2: Rangy position (works across font size changes)
+        if hasRangyPosition, let validRangyId = rangyId, let positionString = lastRead.position {
+            if !canUseLocalOffset && hasOffset {
+                self.lastReadLogger.debug("FALLBACK: Local offset unusable (settings changed)")
             }
+            self.lastReadLogger.debug("Rangy position (id=\(validRangyId)) - text-based restore")
+            page.webView?.js("setLastRead('\(positionString)')")  { _ in }
+            page.scrollTo(validRangyId, animated: false, verticalInset: false)
+            return
         }
-        // otherwise check pageOffsetX, pageOffsetY
-        if (lastRead.pageOffsetX > 0 || lastRead.pageOffsetY > 0) {
+
+        // Priority 3: Fallback to offset
+        if hasOffset {
             let pageOffset = self.readerConfig.isDirection(lastRead.pageOffsetY, lastRead.pageOffsetX, lastRead.pageOffsetY)
-            self.lastReadLogger.debug("scrollToLastReadPosition() - using fallback offset: \(pageOffset)")
+            // Help to find out what went wrong.
+            let reasons = [
+                !fontSizeMatch ? "fontSize changed" : nil,
+                !orientationMatch ? "scrollDirection changed" : nil,
+                !landscapeMatch ? "landscape changed" : nil,
+                hasRangyPosition && rangyId == nil ? "rangy invalid" : nil,
+                !hasRangyPosition ? "no rangy saved" : nil
+            ].compactMap { $0 }.joined(separator: ", ")
+
+            self.lastReadLogger.debug("Fallback - Raw offset (\(pageOffset)) - \(reasons)")
             page.scrollPageToOffset(pageOffset, animated: false)
             return
         }
-        // fallback to subPage calculation if we have a non-zero subPage
-        if lastRead.subPage > 0 {
-            let screenSize = UIScreen.main.bounds.size
-            let calculatedOffset = self.readerConfig.scrollDirection.isVertical ?
-                CGFloat(lastRead.subPage) * screenSize.height :
-                CGFloat(lastRead.subPage) * screenSize.width
-            self.lastReadLogger.debug("scrollToLastReadPosition() - using subPage calculation: subPage=\(lastRead.subPage) -> offset=\(calculatedOffset)")
-            page.scrollPageToOffset(calculatedOffset, animated: false)
-            return
-        }
-        // if subPage is 0 and offsets are 0, user was at top of page - no scroll needed
-        self.lastReadLogger.debug("scrollToLastReadPosition() - at top of page (subPage=0, offsets=0), no scroll needed")
     }
     
     public func pageDidLoad(_ page: FolioReaderPage) {
