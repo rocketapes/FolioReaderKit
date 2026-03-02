@@ -387,22 +387,17 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
             )
         }
         
-        // Queue WebView updates for all visible pages
-        operationQueue.async { [weak self] in
-            guard let self = self else { return }
-            
-            DispatchQueue.main.async {
-                self.updateAllVisiblePages { page in
-                    page.webView?.js("nightMode(\(nightMode))") { result in
-                        switch CommonJSResult.from(jsReturn: result) {
-                        case .ok:
-                            print("Night Mode changed.")
-                            break
-                        case .error(let message):
-                            print("Night Mode JS error: \(message)")
-                        case .unknown(let returnValue):
-                            print("Font size JS returned unknown value: \(String(describing: returnValue))")
-                        }
+        DispatchQueue.main.async {
+            self.updateAllVisiblePages { page in
+                page.webView?.js("nightMode(\(nightMode))") { result in
+                    switch CommonJSResult.from(jsReturn: result) {
+                    case .ok:
+                        print("Night Mode changed.")
+                        break
+                    case .error(let message):
+                        print("Night Mode JS error: \(message)")
+                    case .unknown(let returnValue):
+                        print("Font size JS returned unknown value: \(String(describing: returnValue))")
                     }
                 }
             }
@@ -412,23 +407,18 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
     private func applyFontChange(_ font: FolioReaderFont) {
         // Update state
         self.folioReader.currentFont = font
-        
-        // Queue WebView updates
-        operationQueue.async { [weak self] in
-            guard let self = self else { return }
-            
-            DispatchQueue.main.async {
-                self.updateAllVisiblePages { page in
-                    page.webView?.js("setFontName('\(font.cssIdentifier)')") { result in
-                        switch CommonJSResult.from(jsReturn: result) {
-                        case .ok:
-                            print("Font changed on page \(page.pageNumber ?? 0)")
-                            break
-                        case .error(let message):
-                            print("Font Change JS error for page \(page.pageNumber ?? 0): \(message)")
-                        case .unknown(let returnValue):
-                            print("Font Change JS returned unknown value for page \(page.pageNumber ?? 0): \(String(describing: returnValue))")
-                        }
+
+        DispatchQueue.main.async {
+            self.updateAllVisiblePages { page in
+                page.webView?.js("setFontName('\(font.cssIdentifier)')") { result in
+                    switch CommonJSResult.from(jsReturn: result) {
+                    case .ok:
+                        print("Font changed on page \(page.pageNumber ?? 0)")
+                        break
+                    case .error(let message):
+                        print("Font Change JS error for page \(page.pageNumber ?? 0): \(message)")
+                    case .unknown(let returnValue):
+                        print("Font Change JS returned unknown value for page \(page.pageNumber ?? 0): \(String(describing: returnValue))")
                     }
                 }
             }
@@ -495,21 +485,17 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
         self.folioReader.currentFontSize = fontSize
         
         // Queue WebView updates
-        operationQueue.async { [weak self] in
-            guard let self = self else { return }
-            
-            DispatchQueue.main.async {
-                self.updateAllVisiblePages { page in
-                    page.webView?.js("setFontSize('\(fontSize.cssIdentifier)')") { result in
-                        switch CommonJSResult.from(jsReturn: result) {
-                        case .ok:
-                            print("Font size changed on page \(page.pageNumber ?? 0)")
-                            break
-                        case .error(let message):
-                            print("Font size JS error for page \(page.pageNumber ?? 0): \(message)")
-                        case .unknown(let returnValue):
-                            print("Font size JS returned unknown value for page \(page.pageNumber ?? 0): \(String(describing: returnValue))")
-                        }
+        DispatchQueue.main.async {
+            self.updateAllVisiblePages { page in
+                page.webView?.js("setFontSize('\(fontSize.cssIdentifier)')") { result in
+                    switch CommonJSResult.from(jsReturn: result) {
+                    case .ok:
+                        print("Font size changed on page \(page.pageNumber ?? 0)")
+                        break
+                    case .error(let message):
+                        print("Font size JS error for page \(page.pageNumber ?? 0): \(message)")
+                    case .unknown(let returnValue):
+                        print("Font size JS returned unknown value for page \(page.pageNumber ?? 0): \(String(describing: returnValue))")
                     }
                 }
             }
