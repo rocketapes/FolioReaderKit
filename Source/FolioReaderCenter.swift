@@ -1628,7 +1628,8 @@ extension FolioReaderCenter: FolioReaderPageDelegate {
         
         // Go to anchor if needed
         // Fix RE-763
-        if let anchor = tempAnchor, !anchor.isEmpty {
+        // only the page the anchor belongs to consumes it, a neighbouring cell can finish first (RHE-455)
+        if let anchor = tempAnchor, !anchor.isEmpty, page == currentPage {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                 self.currentPage?.handleAnchor(anchor, avoidBeginningAnchors: false, animated: true)
                 self.tempAnchor = nil
