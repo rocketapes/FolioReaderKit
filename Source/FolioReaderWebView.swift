@@ -18,7 +18,10 @@ open class FolioReaderWebView: WKWebView {
     var isColors = false
     var isShare = false
     var isOneWord = false
-    
+    /// highlight rect of the last shown menu, anchor for the colour palette
+    private var lastMenuRect = CGRect.zero
+    private(set) var highlightPalette: UIView?
+
     fileprivate(set) var cssOverflowProperty = "scroll"
 
     fileprivate weak var readerContainer: FolioReaderContainer?
@@ -131,9 +134,35 @@ open class FolioReaderWebView: WKWebView {
     }
 
     func colors(_ sender: UIMenuController?) {
+        // the iOS 26 liquid glass edit menu renders item images monochrome, so the
+        // colour choice gets its own palette view there (RHE-455)
+        if #available(iOS 26, *) {
+            showHighlightPalette()
+            return
+        }
         isColors = true
         createMenu(options: false)
         setMenuVisible(true)
+    }
+
+    @available(iOS 26, *)
+    private func showHighlightPalette() {
+        let rect = lastMenuRect
+        setMenuVisible(false)
+        let palette = FolioReaderHighlightPalette { [weak self] style in
+            self?.changeHighlightStyle(nil, style: style)
+        }
+        palette.show(above: rect, in: self)
+        highlightPalette = palette
+    }
+
+    /// returns true when a palette was showing and got dismissed
+    @discardableResult
+    func removeHighlightPalette() -> Bool {
+        guard let palette = highlightPalette else { return false }
+        palette.removeFromSuperview()
+        highlightPalette = nil
+        return true
     }
 
     func remove(_ sender: UIMenuController?) {
@@ -302,28 +331,54 @@ open class FolioReaderWebView: WKWebView {
     private lazy var playAudioItem = UIMenuItem(title: self.readerConfig.localizedPlayMenu, action: #selector(play(_:)))
     private lazy var defineItem = UIMenuItem(title: self.readerConfig.localizedDefineMenu, action: #selector(define(_:)))
 
-    private lazy var colorsItem = UIMenuItem(title: "C", image: UIImage(readerImageNamed: "colors-marker")) { [weak self] _ in
+    private lazy var colorsItem = UIMenuItem(title: "C", image: self.colorsMenuImage) { [weak self] _ in
         self?.colors(self?.menuController)
     }
-    private lazy var shareItem = UIMenuItem(title: "S", image: UIImage(readerImageNamed: "share-marker")) { [weak self] _ in
+
+    /// the liquid glass edit menu renders images monochrome, so iOS 26+ gets a symbol that
+    /// still reads as an icon there (RHE-455); older systems keep the coloured marker
+    private var colorsMenuImage: UIImage? {
+        if #available(iOS 26, *) {
+            return Self.monochromeColorsMarker()
+        }
+        return UIImage(readerImageNamed: "colors-marker")?.withRenderingMode(.alwaysOriginal)
+    }
+
+    /// the colors-marker glyph without its coloured dots: a bold A over a marker line
+    private static func monochromeColorsMarker() -> UIImage {
+        let size = CGSize(width: 24, height: 24)
+        return UIGraphicsImageRenderer(size: size).image { _ in
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 17, weight: .semibold),
+                .foregroundColor: UIColor.label
+            ]
+            let text = "A" as NSString
+            let textSize = text.size(withAttributes: attributes)
+            text.draw(at: CGPoint(x: (size.width - textSize.width) / 2, y: (size.height - textSize.height) / 2 - 2), withAttributes: attributes)
+            let line = UIBezierPath(roundedRect: CGRect(x: 4, y: size.height - 5, width: size.width - 8, height: 3), cornerRadius: 1.5)
+            UIColor.label.setFill()
+            line.fill()
+        }.withRenderingMode(.alwaysOriginal)
+    }
+    private lazy var shareItem = UIMenuItem(title: "S", image: UIImage(readerImageNamed: "share-marker")?.withRenderingMode(.alwaysOriginal)) { [weak self] _ in
         self?.share(self?.menuController)
     }
-    private lazy var removeItem = UIMenuItem(title: "R", image: UIImage(readerImageNamed: "no-marker")) { [weak self] _ in
+    private lazy var removeItem = UIMenuItem(title: "R", image: UIImage(readerImageNamed: "no-marker")?.withRenderingMode(.alwaysOriginal)) { [weak self] _ in
         self?.remove(self?.menuController)
     }
-    private lazy var yellowItem = UIMenuItem(title: "Y", image: UIImage(readerImageNamed: "yellow-marker")) { [weak self] _ in
+    private lazy var yellowItem = UIMenuItem(title: "Y", image: UIImage(readerImageNamed: "yellow-marker")?.withRenderingMode(.alwaysOriginal)) { [weak self] _ in
         self?.setYellow(self?.menuController)
     }
-    private lazy var greenItem = UIMenuItem(title: "G", image: UIImage(readerImageNamed: "green-marker")) { [weak self] _ in
+    private lazy var greenItem = UIMenuItem(title: "G", image: UIImage(readerImageNamed: "green-marker")?.withRenderingMode(.alwaysOriginal)) { [weak self] _ in
         self?.setGreen(self?.menuController)
     }
-    private lazy var blueItem = UIMenuItem(title: "B", image: UIImage(readerImageNamed: "blue-marker")) { [weak self] _ in
+    private lazy var blueItem = UIMenuItem(title: "B", image: UIImage(readerImageNamed: "blue-marker")?.withRenderingMode(.alwaysOriginal)) { [weak self] _ in
         self?.setBlue(self?.menuController)
     }
-    private lazy var pinkItem = UIMenuItem(title: "P", image: UIImage(readerImageNamed: "pink-marker")) { [weak self] _ in
+    private lazy var pinkItem = UIMenuItem(title: "P", image: UIImage(readerImageNamed: "pink-marker")?.withRenderingMode(.alwaysOriginal)) { [weak self] _ in
         self?.setPink(self?.menuController)
     }
-    private lazy var underlineItem = UIMenuItem(title: "U", image: UIImage(readerImageNamed: "underline-marker")) { [weak self] _ in
+    private lazy var underlineItem = UIMenuItem(title: "U", image: UIImage(readerImageNamed: "underline-marker")?.withRenderingMode(.alwaysOriginal)) { [weak self] _ in
         self?.setUnderline(self?.menuController)
     }
 
@@ -365,20 +420,22 @@ open class FolioReaderWebView: WKWebView {
     }
     
     open func setMenuVisible(_ menuVisible: Bool, animated: Bool = true, andRect rect: CGRect = CGRect.zero) {
+        removeHighlightPalette()
         if !menuVisible {
             isColors = false
             isShare = false
 
             createMenu(options: false)
         }
-        
+
         if menuVisible && !rect.equalTo(CGRect.zero) {
+            lastMenuRect = rect
             UIMenuController.shared.setTargetRect(rect, in: self)
         }
-        
+
         UIMenuController.shared.setMenuVisible(menuVisible, animated: animated)
     }
-    
+
     
     // MARK: WebView
     
@@ -391,6 +448,7 @@ open class FolioReaderWebView: WKWebView {
     }
     
     func setupScrollDirection() {
+        let previousOverflowProperty = cssOverflowProperty
         switch self.readerConfig.scrollDirection {
         case .vertical, .defaultVertical:
             scrollView.isPagingEnabled = true
@@ -410,6 +468,11 @@ open class FolioReaderWebView: WKWebView {
         }
 
         FolioReaderScript.cssInjection(overflow: cssOverflowProperty).addIfNeeded(to: self)
+
+        // layoutSubviews calls this on every pass, a reload there would reset the
+        // reading position and refetch the chapter (RHE-455). Only reload when the
+        // injected overflow css actually changed.
+        guard cssOverflowProperty != previousOverflowProperty else { return }
         reload()
     }
 }
