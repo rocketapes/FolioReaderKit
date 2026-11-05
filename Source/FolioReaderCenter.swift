@@ -596,9 +596,11 @@ open class FolioReaderCenter: UIViewController, UICollectionViewDelegate, UIColl
 
         coordinator.animate(alongsideTransition: { _ in
             // The view already has the new size here, viewDidLayoutSubviews updated the page size
+            // Move to the chapter frame before laying out, otherwise the layout pass shows other
+            // index paths first, recycles the current cell and reloads the chapter from scratch.
             self.collectionView.collectionViewLayout.invalidateLayout()
-            self.collectionView.layoutIfNeeded()
             self.collectionView.setContentOffset(self.frameForPage(pageNumber).origin, animated: false)
+            self.collectionView.layoutIfNeeded()
             self.pageIndicatorView?.reloadView(updateShadow: true)
         }, completion: { [weak self] _ in
             guard let self = self, let currentPage = self.currentPage else { return }
@@ -1682,7 +1684,18 @@ extension FolioReaderCenter: FolioReaderChapterListDelegate {
         // Move to #fragment
         if let reference = tempReference {
             if let fragmentID = reference.fragmentID, let currentPage = currentPage , fragmentID != "" {
-                currentPage.handleAnchor(reference.fragmentID!, avoidBeginningAnchors: true, animated: true)
+                // the chapter cell is often still loading when the list is dismissed, the anchor
+                // offset would then be 0 (RHE-455). Defer to pageDidLoad in that case.
+                if currentPage.webView?.isLoading == true {
+                    tempAnchor = fragmentID
+                } else if currentPage.webView?.scrollView.contentSize == .zero {
+                    // just finished loading, layout not done yet, same delay as the tempAnchor path
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                        currentPage.handleAnchor(fragmentID, avoidBeginningAnchors: true, animated: true)
+                    }
+                } else {
+                    currentPage.handleAnchor(fragmentID, avoidBeginningAnchors: true, animated: true)
+                }
             }
             tempReference = nil
         }

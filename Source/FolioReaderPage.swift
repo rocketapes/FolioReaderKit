@@ -510,6 +510,13 @@ open class FolioReaderPage: UICollectionViewCell, WKNavigationDelegate, UIGestur
     }
 
   @objc open func handleTapGesture(_ recognizer: UITapGestureRecognizer) {
+      // a tap outside the colour palette only closes it, taps on it belong to its buttons (RHE-455)
+      if let webView = webView, let palette = webView.highlightPalette {
+          if !palette.frame.contains(recognizer.location(in: webView)) {
+              webView.removeHighlightPalette()
+          }
+          return
+      }
       self.delegate?.pageTap?(recognizer)
       
       if let _navigationController = self.folioReader.readerCenter?.navigationController, (_navigationController.isNavigationBarHidden == true) {
