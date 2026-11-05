@@ -132,6 +132,20 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
     
         
 
+        self.buildMenu()
+    }
+
+    override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
+        super.viewWillTransition(to: size, with: coordinator)
+        // all subviews use frames computed from the initial width, rebuild them for the new size (RHE-455)
+        coordinator.animate(alongsideTransition: nil) { [weak self] _ in
+            self?.buildMenu()
+        }
+    }
+
+    private func buildMenu() {
+        self.view.subviews.forEach { $0.removeFromSuperview() }
+
         // Menu view
         let visibleHeight: CGFloat = self.readerConfig.canChangeScrollDirection ? 222 : 170
         let bottomInset = view.safeAreaInsets.bottom
@@ -177,11 +191,12 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
                                         keySegmentOffSelectionTextColour: normalColor,
                                         keyContentVerticalMargin: 17 as AnyObject
             ])
-        dayNight.delegate = self
         dayNight.tag = 1
         dayNight.addSegmentWithTitle(self.readerConfig.localizedFontMenuDay, onSelectionImage: sunSelected, offSelectionImage: sunNormal)
         dayNight.addSegmentWithTitle(self.readerConfig.localizedFontMenuNight, onSelectionImage: moonSelected, offSelectionImage: moonNormal)
         dayNight.selectSegmentAtIndex(self.folioReader.nightMode.intValue)
+        // delegate after selection: selectSegment fires the delegate, which would re-apply night mode via js on every rebuild (RHE-455)
+        dayNight.delegate = self
         menuView.addSubview(dayNight)
 
 
@@ -201,7 +216,6 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
                                         keySegmentOffSelectionTextColour: normalColor,
                                         keyContentVerticalMargin: 17 as AnyObject
             ])
-        fontName.delegate = self
         fontName.tag = 2
 
         fontName.addSegmentWithTitle("Andada", onSelectionImage: nil, offSelectionImage: nil)
@@ -215,6 +229,7 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
         fontName.segments[3].titleFont = UIFont(name: "Raleway-Regular", size: 18) ?? .systemFont(ofSize: 18)
 
         fontName.selectSegmentAtIndex(self.folioReader.currentFont.rawValue)
+        fontName.delegate = self
         menuView.addSubview(fontName)
 
         // Separator 2
@@ -287,7 +302,6 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
                                                 keySegmentOffSelectionTextColour: normalColor,
                                                 keyContentVerticalMargin: 17 as AnyObject
             ])
-        layoutDirection.delegate = self
         layoutDirection.tag = 3
         layoutDirection.addSegmentWithTitle(self.readerConfig.localizedLayoutVertical, onSelectionImage: verticalSelected, offSelectionImage: verticalNormal)
         layoutDirection.addSegmentWithTitle(self.readerConfig.localizedLayoutHorizontal, onSelectionImage: horizontalSelected, offSelectionImage: horizontalNormal)
@@ -304,6 +318,7 @@ class FolioReaderFontsMenu: UIViewController, SMSegmentViewDelegate, UIGestureRe
         case .horizontal, .horizontalWithVerticalContent:
             layoutDirection.selectSegmentAtIndex(FolioReaderScrollDirection.horizontal.rawValue)
         }
+        layoutDirection.delegate = self
         menuView.addSubview(layoutDirection)
     }
     
